@@ -1,6 +1,7 @@
 import random
 class MergeSort:
     '''
+    Class for handling list sorting using the merge algorithmn.
     Methods: CreateList(size), Sort(array), PrintList(array)
     '''
     def CreateList(self,size): #subroutine that creates a list to use as test data

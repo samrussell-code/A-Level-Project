@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>62c4e1bb-ed24-468a-861c-ac0e8a2f1b28</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>planning\merge_sort\using_listsortmanager.py</StartupFile>
+    <StartupFile>planning\socket\server.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -25,11 +25,18 @@
     <Compile Include="planning\merge_sort\using_listsortmanager.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="planning\socket\client.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="planning\socket\server.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="main\" />
     <Folder Include="planning\" />
     <Folder Include="planning\merge_sort\" />
+    <Folder Include="planning\socket\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
