@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>62c4e1bb-ed24-468a-861c-ac0e8a2f1b28</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>planning\socket\server.py</StartupFile>
+    <StartupFile>planning\socket\client1.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -25,7 +25,7 @@
     <Compile Include="planning\merge_sort\using_listsortmanager.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="planning\socket\client.py">
+    <Compile Include="planning\socket\client1.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="planning\socket\server.py">
