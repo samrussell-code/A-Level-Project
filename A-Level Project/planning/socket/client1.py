@@ -1,13 +1,15 @@
 import socket               # Import socket module
-import time
+import random
 
-clientObj = socket.socket(socket.AF_INET, socket.SOCK_STREAM)         # Create a socket object
+clientObj = socket.socket()       # Create a socket object
 host = socket.gethostname() # Get local machine name e.g. SamWorkstation
 port = 25520                # Reserve a port for your service.
 
 clientObj.connect((host, port))
-recievedData=clientObj.recv(65536).decode()
-print(recievedData)
+username=str(host+' #'+str(random.randint(100000,999999)))
+clientObj.send(username.encode())
+welcomeMessage=clientObj.recv(65536).decode()
+print(welcomeMessage)
 while True:
     data=input("CHAT: ")
     clientObj.send(data.encode())
