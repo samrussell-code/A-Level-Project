@@ -43,6 +43,7 @@
     <Folder Include="planning\" />
     <Folder Include="planning\merge_sort\" />
     <Folder Include="planning\pygame\" />
+    <Folder Include="planning\pygame\imagedata\" />
     <Folder Include="planning\threading\" />
     <Folder Include="planning\socket\" />
   </ItemGroup>
@@ -56,6 +57,12 @@
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
       <Architecture>X64</Architecture>
     </Interpreter>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="planning\pygame\imagedata\chimp.bmp" />
+    <Content Include="planning\pygame\imagedata\punch.wav" />
+    <Content Include="planning\pygame\imagedata\whiff.wav" />
+    <Content Include="planning\pygame\imagedata\fist.bmp" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
