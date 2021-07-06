@@ -13,7 +13,7 @@ def NewServer():
     newChatLog.close() #closes the data log ready for runtime
     return server,chatlogName
 
-class Client():
+class Client:
     '''
     Class for handling client information on the server side. Deals with send/recieve cycling and handling the log textfile.
     Methods: StartThreads(), SenderNode(), RecieverNode(IP,port,socketClientObject,userNumber)

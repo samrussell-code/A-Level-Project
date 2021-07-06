@@ -4,13 +4,14 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>62c4e1bb-ed24-468a-861c-ac0e8a2f1b28</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>planning\socket\server with threads.py</StartupFile>
+    <StartupFile>planning\pygame\line_by_line_chimp.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>A-Level Project</Name>
     <RootNamespace>A-Level Project</RootNamespace>
+    <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -23,6 +24,9 @@
   <ItemGroup>
     <Compile Include="planning\merge_sort\ListSortManager.py" />
     <Compile Include="planning\merge_sort\using_listsortmanager.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="planning\pygame\line_by_line_chimp.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="planning\socket\client1.py">
@@ -38,8 +42,20 @@
     <Folder Include="main\" />
     <Folder Include="planning\" />
     <Folder Include="planning\merge_sort\" />
+    <Folder Include="planning\pygame\" />
     <Folder Include="planning\threading\" />
     <Folder Include="planning\socket\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Interpreter Include="env\">
+      <Id>env</Id>
+      <Version>3.8</Version>
+      <Description>env (Python 3.8 (64-bit))</Description>
+      <InterpreterPath>Scripts\python.exe</InterpreterPath>
+      <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
+      <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
+      <Architecture>X64</Architecture>
+    </Interpreter>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
