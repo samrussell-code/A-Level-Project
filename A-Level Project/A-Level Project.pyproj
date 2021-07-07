@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>62c4e1bb-ed24-468a-861c-ac0e8a2f1b28</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>planning\pygame\line_by_line_chimp.py</StartupFile>
+    <StartupFile>planning\pygame\animation.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -27,6 +27,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="planning\pygame\line_by_line_chimp.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="planning\pygame\animation.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="planning\socket\client1.py">
