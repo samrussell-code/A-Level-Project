@@ -17,6 +17,13 @@ def CreateFrameList(stateName):
         frameList.append(pygame.image.load(str('planning/pygame/imagedata/')+str(filename)))
     return frameList
 
+class TankNozzle(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.nozzleidleframeList=CreateFrameList('tanknozzle-idle')
+        self.nozzleidleframeList=CreateFrameList('tanknozzle-moving')
+
+
 class PlayerTank(pygame.sprite.Sprite):
     '''
     PlayerTank
@@ -31,12 +38,13 @@ class PlayerTank(pygame.sprite.Sprite):
         #create a subroutine that has a parameter of a list containing the desired frame collection
         #on update, check the state of the tank to see if it is idle
         #use the idle list if idle, and the moving list if not idle
-    def Animate(self,frameList,slowness):
-        self.index+=1
-        if self.index>=(len(frameList))*slowness:
-            self.index=0
-        self.image=frameList[self.index//slowness]
-        self.rect=self.image.get_rect()
+    def Animate(self,frameList,slowness,type='linear'):
+        if type=='linear':
+            self.index+=1
+            if self.index>=(len(frameList))*slowness:
+                self.index=0
+            self.image=frameList[self.index//slowness]
+            self.rect=self.image.get_rect()
     def update(self):
         '''
         update()
