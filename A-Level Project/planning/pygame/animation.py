@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, random
 import pygame
 from pygame.locals import *
 
@@ -13,38 +13,63 @@ def CreateFrameList(stateName):
             loadlist.append(file)
     frameList=[]
     for filename in loadlist:
-        print(filename)
         frameList.append(pygame.image.load(str('planning/pygame/imagedata/')+str(filename)))
     return frameList
 
-class TankNozzle(pygame.sprite.Sprite):
+class AnimatedSprite(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.nozzleidleframeList=CreateFrameList('tanknozzle-idle')
-        self.nozzleidleframeList=CreateFrameList('tanknozzle-moving')
+        self.linearIndex=0
+        self.boomerangIndex=0
+        self.randomIndex=0
+        self.isIdle=True     
+        self.increasing=True
+    def Animate(self,frameList,slowness,animationType='linear'):
+        if animationType=='linear':
+            self.linearIndex+=1
+            if self.linearIndex>=(len(frameList))*slowness:
+                self.linearIndex=0
+            self.image=frameList[self.linearIndex//slowness]
+            self.rect=self.image.get_rect()
 
+        elif animationType=='boomerang':
+            if self.boomerangIndex>=(len(frameList))*slowness:
+                self.increasing=False;self.boomerangIndex-=1
+            elif self.boomerangIndex==0:
+                self.increasing=True;self.boomerangIndex+=1
+            self.image=frameList[self.boomerangIndex//slowness]
+            self.rect=self.image.get_rect()
+            self.boomerangIndex=self.boomerangIndex+1 if self.increasing==True else self.boomerangIndex-1
 
-class PlayerTank(pygame.sprite.Sprite):
+        elif animationType=='random':
+            if self.randomIndex>=slowness:
+                self.randomImage=random.randint(0,((len(frameList)))-1)
+                self.image=frameList[self.randomImage]
+                self.rect=self.image.get_rect()
+                self.randomIndex=0
+            self.randomIndex+=1
+            return
+
+class TankNozzle(AnimatedSprite):
+    def __init__(self):
+        super().__init__()
+        self.movingframeList=CreateFrameList('tanknozzle-moving')
+        self.idleframeList=[self.movingframeList[3]];self.boomerangIndex=30
+        self.relativePos=0,0
+    def update(self):
+        self.Animate(self.idleframeList,10) if self.isIdle==True else self.Animate(self.movingframeList,10,'boomerang')
+        self.rect.center=self.relativePos
+
+class PlayerTank(AnimatedSprite):
     '''
     PlayerTank
     Methods:
     '''
     def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
+        super().__init__()
         self.tankmovingframeList=CreateFrameList('tank-moving') #collects all the images for the tank into a dictionary
         self.tankidleframeList=CreateFrameList('tank-idle')
-        self.index=0
-        self.isIdle=True
-        #create a subroutine that has a parameter of a list containing the desired frame collection
-        #on update, check the state of the tank to see if it is idle
-        #use the idle list if idle, and the moving list if not idle
-    def Animate(self,frameList,slowness,type='linear'):
-        if type=='linear':
-            self.index+=1
-            if self.index>=(len(frameList))*slowness:
-                self.index=0
-            self.image=frameList[self.index//slowness]
-            self.rect=self.image.get_rect()
+        self.nozzle=TankNozzle()
     def update(self):
         '''
         update()
@@ -52,8 +77,9 @@ class PlayerTank(pygame.sprite.Sprite):
         '''
         self.Animate(self.tankmovingframeList,144) if self.isIdle==True else self.Animate(self.tankmovingframeList,10)
         pos = (960,540)
+        self.nozzle.relativePos=pos
         self.rect.center=pos
-
+        
 def main():
     pygame.init()
     screen=pygame.display.set_mode((1920,1080)) #set display size.
@@ -65,7 +91,7 @@ def main():
     screen.blit(background, (0,0)) #creates the background on the overarching screen surface.
     pygame.display.flip() #flip updates a display that is idle.
     tank=PlayerTank()
-    allsprites=pygame.sprite.RenderPlain((tank)) #sprite group RenderPlain() draws all the sprites it contains into the surface. 
+    allsprites=pygame.sprite.RenderPlain((tank,tank.nozzle)) #sprite group RenderPlain() draws all the sprites it contains into the surface. 
     clock=pygame.time.Clock() #clock helps track time.
 
     while True:
@@ -76,8 +102,24 @@ def main():
             elif event.type==KEYDOWN and event.key==K_ESCAPE:
                 return
             elif event.type==KEYDOWN and event.key==K_d:
+                tank.isIdle=False            
+            elif event.type==KEYDOWN and event.key==K_a:
                 tank.isIdle=False
+            elif event.type==KEYDOWN and event.key==K_w:
+                tank.nozzle.isIdle=False
+                tank.nozzle.increasing=True
+            elif event.type==KEYDOWN and event.key==K_s:
+                tank.nozzle.isIdle=False
+                tank.nozzle.increasing=False
+            elif event.type==KEYUP and event.key==K_w:
+                tank.nozzle.isIdle=True
+                tank.nozzle.idleframeList=[tank.nozzle.image]
+            elif event.type==KEYUP and event.key==K_s:
+                tank.nozzle.isIdle=True
+                tank.nozzle.idleframeList=[tank.nozzle.image]
             elif event.type==KEYUP and event.key==K_d:
+                tank.isIdle=True            
+            elif event.type==KEYUP and event.key==K_a:
                 tank.isIdle=True
 
         allsprites.update()
@@ -85,7 +127,6 @@ def main():
         allsprites.draw(screen)
         pygame.display.flip()
     
-
 
 if __name__=='__main__':
     main()

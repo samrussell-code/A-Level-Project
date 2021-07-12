@@ -26,7 +26,6 @@
     <Compile Include="planning\merge_sort\using_listsortmanager.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="planning\pygame\rewrite_animation.py" />
     <Compile Include="planning\pygame\spritesheet.py" />
     <Compile Include="planning\pygame\line_by_line_chimp.py">
       <SubType>Code</SubType>
