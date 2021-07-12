@@ -2,57 +2,49 @@ import os, sys
 import pygame
 from pygame.locals import *
 
-def LoadImage(name, colourkey=None,customFileExtension=False):
-    '''
-    LoadImage(name, colourkey=None,customFileExtension=False)
-    returns the image and the rectangle object created by pygame with the image's quality, when a filename and optional alpha channel key is entered.
-    custom file extension allows the user to input their own file extension if set to true
-    '''
-    
-    filename=os.path.join('planning/pygame/imagedata',name) if customFileExtension==False else str('planning/pygame/imagedata/'+name)
-    try: #tries to load the file and sends an error if the file cannot be opened in image format
-        image= pygame.image.load(filename) 
-    except pygame.error as message:
-        print('Cannot load image:',name)
-        raise SystemExit(message)
-    image = image.convert() #converts the image file into a new surface object
-    if colourkey is not None:
-        if colourkey == -1: #if colourkey is set to -1, it will set itself to the colour at the top left of the image
-            colourkey = image.get_at((0,0))
-        image.set_colorkey(colourkey, RLEACCEL)
-    return image, image.get_rect()
-
-def CreateFrameDict(spriteName):
+def CreateFrameList(stateName):
     '''
     CreateFrameList(spriteName)
     Creates a dictionary of images loaded from imagedata under the same prefix
     '''
     loadlist=[]
     for file in os.listdir('planning/pygame/imagedata'):
-        if os.path.isfile(os.path.join('planning/pygame/imagedata', file)) and (spriteName+'_') in str(file) and ('.png' in str(file) or '.jpg' in str(file)):
+        if os.path.isfile(os.path.join('planning/pygame/imagedata', file)) and (stateName+'_') in str(file) and ('.png' in str(file) or '.jpg' in str(file)):
             loadlist.append(file)
-    frameDict={}
+    frameList=[]
     for filename in loadlist:
-        frameDict.update({filename.split('.')[0]:LoadImage(filename,-1,True)}) #adds the filename without the extension to a list as the key, with the loaded image as the value
-    return frameDict
-
-class AnimationHandler:
-    def __init__(self,frameDict):
-        self.frameDict=frameDict
-    def SetIdleFrame(self,filename):
-        self.idleFrame=self.frameDict[filename]
+        print(filename)
+        frameList.append(pygame.image.load(str('planning/pygame/imagedata/')+str(filename)))
+    return frameList
 
 class PlayerTank(pygame.sprite.Sprite):
     '''
     PlayerTank
     Methods:
-
     '''
-    def __init__(self,frameDict):
-        self.frameDict=frameDict
-        animHandler=AnimationHandler(self.frameDict)
-        animHandler.SetIdleFrame('tank_1')
-
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.tankmovingframeList=CreateFrameList('tank-moving') #collects all the images for the tank into a dictionary
+        self.tankidleframeList=CreateFrameList('tank-idle')
+        self.index=0
+        self.isIdle=True
+        #create a subroutine that has a parameter of a list containing the desired frame collection
+        #on update, check the state of the tank to see if it is idle
+        #use the idle list if idle, and the moving list if not idle
+    def Animate(self,frameList,slowness):
+        self.index+=1
+        if self.index>=(len(frameList))*slowness:
+            self.index=0
+        self.image=frameList[self.index//slowness]
+        self.rect=self.image.get_rect()
+    def update(self):
+        '''
+        update()
+        updates playertank every frame
+        '''
+        self.Animate(self.tankmovingframeList,144) if self.isIdle==True else self.Animate(self.tankmovingframeList,10)
+        pos = (960,540)
+        self.rect.center=pos
 
 def main():
     pygame.init()
@@ -64,10 +56,27 @@ def main():
     background.fill((250,250,250))
     screen.blit(background, (0,0)) #creates the background on the overarching screen surface.
     pygame.display.flip() #flip updates a display that is idle.
+    tank=PlayerTank()
+    allsprites=pygame.sprite.RenderPlain((tank)) #sprite group RenderPlain() draws all the sprites it contains into the surface. 
+    clock=pygame.time.Clock() #clock helps track time.
 
-    tankFrames=CreateFrameDict('tank')
-    tank=PlayerTank(tankFrames)
+    while True:
+        clock.tick(144) #setting a maximum framerate for the animation.
+        for event in pygame.event.get():
+            if event.type==QUIT:
+                return
+            elif event.type==KEYDOWN and event.key==K_ESCAPE:
+                return
+            elif event.type==KEYDOWN and event.key==K_d:
+                tank.isIdle=False
+            elif event.type==KEYUP and event.key==K_d:
+                tank.isIdle=True
 
+        allsprites.update()
+        screen.blit(background, (0,0))
+        allsprites.draw(screen)
+        pygame.display.flip()
+    
 
 
 if __name__=='__main__':
