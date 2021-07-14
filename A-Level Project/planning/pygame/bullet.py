@@ -21,40 +21,38 @@ class Bullet(AnimatedSprite):
     def __init__(self):
         super().__init__()
         self.idleframeList=CreateFrameList('bullet-idle')
+        self.COEFFICIENT_RESTITUTION=0.4
+        self.FRAMERATE=0
         self.isMoving=False
         self.pos=1920/2,1080/2
         self.velocity,self.angle,self.count=0,0,0
-        self.FRAMERATE=60
         self.Animate(self.idleframeList,self.FRAMERATE)
         self.bboxx,self.bboxy=self.image.get_size()
         self.lastStaticPosition=self.pos
+        self.bounceNumber=1
         
-    def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
-        hMovement=velocity*cos(radians(angle))
-        vMovement=velocity*sin(radians(angle))
-        vMovement=-(vMovement)+(((9.81/2)*(time)**2)/2)
-        print(f'''
-        velocity = {velocity}
-        angle = {angle}
-        pos = {self.pos}
-        hMovement = {hMovement}
-        vMovement = {vMovement}
-        ''')
-        terminalVelocity=3000
-        vMovement=terminalVelocity if vMovement>terminalVelocity else vMovement
-        self.pos=self.UpdatePosition_(self.pos,hMovement,vMovement)
-
     def UpdatePosition_(self,initialposition,horizontal_movement,vertical_movement):
         initialpositionx,initialpositiony=initialposition
-        newpositionx=(horizontal_movement/self.FRAMERATE/2)+initialpositionx
-        newpositiony=(vertical_movement/self.FRAMERATE/2)+initialpositiony
-        ignore,self.angle=self.GetVelocityAngle((newpositionx,newpositiony),(initialpositionx,initialpositiony))
-        self.UpdateRotation_(self.angle)
-        if newpositionx<1950 and newpositionx>-30 and newpositiony<1110 and newpositiony>-30:
+        newpositionx=(horizontal_movement/self.FRAMERATE)+initialpositionx
+        newpositiony=(vertical_movement/self.FRAMERATE)+initialpositiony
+        if newpositionx<1920 and newpositionx>-10 and newpositiony<1010 and newpositiony>-10:
+            ignore,angle=self.GetVelocityAngle((newpositionx,newpositiony),(initialpositionx,initialpositiony))
+            self.UpdateRotation_(angle)
             return newpositionx,newpositiony
         else:
-            self.isMoving=False
-            self.lastStaticPosition=self.pos
+            if self.bounceNumber>2:
+                self.isMoving=False
+                self.lastStaticPosition=self.pos
+                self.bounceNumber=1
+            else:
+                self.bounceNumber+=1
+                self.count=0
+                self.lastStaticPosition=self.pos
+                self.UpdateRotation_(90)
+                if newpositionx<-9 or newpositionx>1919:
+                    self.bounceNumber=0
+                    self.velocity=-self.velocity
+                self.velocity=self.velocity/(1/self.COEFFICIENT_RESTITUTION)
             return initialpositionx,initialpositiony
 
     def UpdateRotation_(self,angle):
@@ -63,12 +61,18 @@ class Bullet(AnimatedSprite):
         x,y=self.rect.center
         self.rect=self.image.get_rect()
         self.rect.center=(x,y)
+
+    def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
+        hMovement=velocity*cos(radians(angle))
+        vMovement=velocity*sin(radians(angle))
+        vMovement=-(vMovement)+(((9.81/2)*(time)**2)/2)
+        terminalVelocity=3000
+        vMovement=terminalVelocity if vMovement>terminalVelocity else vMovement
+        self.pos=self.UpdatePosition_(self.pos,hMovement,vMovement)
         
     def GetVelocityAngle(self,forcePosition,objectPosition):
-        print('initial positions:',forcePosition,objectPosition)
         dY=forcePosition[1]-objectPosition[1] #y is inversed so a negative y is upwards and a positive y is downwards
         dX=forcePosition[0]-objectPosition[0] #x is not inversed so a negative x is left and positive x is right
-        print('difference in positions:',dX,dY)
         hypotenuse=sqrt((dY**2)+(dX**2)) #this is always positive
         angle=degrees(atan(dY/dX)) if dX!=0 and hypotenuse>10 else 90
         if dY<0 and dX>0:#0 to 90
@@ -79,7 +83,7 @@ class Bullet(AnimatedSprite):
             angle=abs(angle)+180
         elif dY>0 and dX>0: #270 to 360
             angle=90-abs(angle)+270
-        hypotenuse=hypotenuse*5
+        hypotenuse=hypotenuse*2.5
         return hypotenuse,angle
         
     def update(self):
@@ -88,10 +92,8 @@ class Bullet(AnimatedSprite):
         if self.isMoving==True:
             self.GetDisplacement_(self.velocity,self.angle,self.count)
             self.count+=1
-            updatedStaticRotation=False
         else:
             self.count=0
-            self.UpdateRotation_(self.angle)
         self.rect=self.image.get_rect()
         self.rect.center=self.pos
 
@@ -131,9 +133,9 @@ def main():
             elif event.type==KEYDOWN and event.key==K_ESCAPE:
                 return
             elif event.type==MOUSEBUTTONDOWN and event.button==1 and bullet.isMoving==False:
-                print('##############################################################')
                 bullet.velocity,bullet.angle=bullet.GetVelocityAngle(event.pos,bullet.pos)
                 bullet.isMoving=True
+
 
         allsprites.update()
         screen.blit(background, (0,0))
