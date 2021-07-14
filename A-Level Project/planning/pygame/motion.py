@@ -1,7 +1,8 @@
-import os, sys, random, math
+import os, sys, random
+from math import *
 import pygame
 from pygame.locals import *
-
+from animation import AnimatedSprite
 def CreateFrameList(stateName):
     '''
     CreateFrameList(spriteName)
@@ -16,69 +17,71 @@ def CreateFrameList(stateName):
         frameList.append(pygame.image.load(str('planning/pygame/imagedata/')+str(filename)))
     return frameList
 
-class AnimatedSprite(pygame.sprite.Sprite):
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-        self.linearIndex=0
-        self.boomerangIndex=0
-        self.randomIndex=0
-        self.isIdle=True     
-        self.increasing=True
-    def Animate(self,frameList,slowness,animationType='linear'):
-        if animationType=='linear':
-            self.linearIndex+=1
-            if self.linearIndex>=(len(frameList))*slowness:
-                self.linearIndex=0
-            self.image=frameList[self.linearIndex//slowness]
-            self.rect=self.image.get_rect()
-
-        elif animationType=='boomerang':
-            if self.boomerangIndex>=(len(frameList))*slowness:
-                self.increasing=False;self.boomerangIndex-=1
-            elif self.boomerangIndex==0:
-                self.increasing=True;self.boomerangIndex+=1
-            self.image=frameList[self.boomerangIndex//slowness]
-            self.rect=self.image.get_rect()
-            self.boomerangIndex=self.boomerangIndex+1 if self.increasing==True else self.boomerangIndex-1
-
-        elif animationType=='random':
-            if self.randomIndex>=slowness:
-                self.randomImage=random.randint(0,((len(frameList)))-1)
-                self.image=frameList[self.randomImage]
-                self.rect=self.image.get_rect()
-                self.randomIndex=0
-            self.randomIndex+=1
-            return
-
 class Bullet(AnimatedSprite):
     def __init__(self):
         super().__init__()
         self.idleframeList=CreateFrameList('bullet-idle')
         self.isMoving=False
-        self.pos=1920/6,1080-1080/100
-    def DoMaths_(self,initialposition):
+        self.pos=1920/2,1080/2
+        self.velocity,self.angle,self.count=0,0,0
+        
+    def DoMaths_(self,initialposition,horizontal_movement,vertical_movement):
         initialpositionx,initialpositiony=initialposition
-        horizontal_velocity=250
-        vertical_velocity=0
-        newpositionx=(horizontal_velocity/144)+initialpositionx
-        newpositiony=(vertical_velocity/144)+initialpositiony
+        newpositionx=(horizontal_movement/144)+initialpositionx
+        newpositiony=(vertical_movement/144)+initialpositiony
         if newpositionx<2000 and newpositionx>0 and newpositiony<1080 and newpositiony>0:
             return newpositionx,newpositiony
         else:
             return initialpositionx,initialpositiony
+            self.isMoving=False
+        
+    def GetDisplacement(self,velocity=0.01,angle=0.01,time=0):
+        print(f'''
+        velocity = {velocity}
+        angle = {angle}
+        pos = {self.pos}
+        ''')
+        hMovement=velocity*cos(radians(angle))
+        vMovement=velocity*sin(radians(angle))
+        hMovement=hMovement*time
+        vMovement=-(vMovement*time)+(((9.81/2)*(time)**2)/2)
+
+        self.pos=self.DoMaths_(self.pos,hMovement,vMovement)
+        
+    def GetVelocityAngle(self,forcePosition,objectPosition):
+        dY=forcePosition[1]-objectPosition[1] #y is inversed so a negative y is upwards and a positive y is downwards
+        dX=forcePosition[0]-objectPosition[0] #x is not inversed so a negative x is left and positive x is right
+        hypotenuse=sqrt((dY**2)+(dX**2)) #this is always positive
+        angle=degrees(atan(dY/dX)) if dX!=0 and hypotenuse>10 else 90
+        if dY<0 and dX>0:#0 to 90
+            angle=abs(angle)
+        elif dY<0 and dX<0: #90 to 180
+            angle=90-abs(angle)+90
+        elif dY>0 and dX<0: #180 to 270
+            angle=abs(angle)+180
+        elif dY>0 and dX>0: #270 to 360
+            angle=90-abs(angle)+270
+        hypotenuse=hypotenuse/5
+        return hypotenuse,angle
+        
     def update(self):
-        self.Animate(self.idleframeList,144)
+        self.Animate(self.idleframeList,60)
         self.image=pygame.transform.scale(self.image,(50,50))
         if self.isMoving==True:
-            self.pos=self.DoMaths_(self.pos)
+            self.GetDisplacement(self.velocity,self.angle,self.count)
+            print(self.velocity)
+            self.count+=1
+        else:
+            self.count=0
+        self.rect=self.image.get_rect()
         self.rect.center=self.pos
 
 
 class MouseObject(AnimatedSprite):
     def __init__(self):
         super().__init__()
-        self.image=pygame.Surface([10,10])
-        self.image.fill('#7C898B')
+        self.image=pygame.Surface([10,10])        
+        
     def update(self):
         self.pos = pygame.mouse.get_pos()
         self.rect=self.image.get_rect()
@@ -100,16 +103,15 @@ def main():
     clock=pygame.time.Clock() #clock helps track time.
 
     while True:
-        clock.tick(144) #setting a maximum framerate for the animation.
+        clock.tick(60) #setting a maximum framerate for the animation.
         for event in pygame.event.get():
             if event.type==QUIT:
                 return
             elif event.type==KEYDOWN and event.key==K_ESCAPE:
                 return
-            elif event.type==KEYDOWN and event.key==K_d:
-                bullet.isMoving=True       
-            elif event.type==KEYUP and event.key==K_d:
-                bullet.isMoving=False     
+            elif event.type==MOUSEBUTTONDOWN and event.button==1 and bullet.isMoving==False:
+                bullet.velocity,bullet.angle=bullet.GetVelocityAngle(event.pos,bullet.pos)
+                bullet.isMoving=True
 
 
         allsprites.update()
