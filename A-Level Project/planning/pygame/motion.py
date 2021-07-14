@@ -24,33 +24,35 @@ class Bullet(AnimatedSprite):
         self.isMoving=False
         self.pos=1920/2,1080/2
         self.velocity,self.angle,self.count=0,0,0
-        self.framerate=0
-        self.Animate(self.idleframeList,self.framerate)
+        self.Animate(self.idleframeList,self.FRAMERATE)
         self.bboxx,self.bboxy=self.image.get_size()
         self.lastStaticPosition=self.pos
-        self.bounceNumber=0
+        self.bounceNumber=1
+        self.COEFFICIENT_RESTITUTION=0.4
+        self.FRAMERATE=0
         
     def UpdatePosition_(self,initialposition,horizontal_movement,vertical_movement):
         initialpositionx,initialpositiony=initialposition
-        newpositionx=(horizontal_movement/self.framerate)+initialpositionx
-        newpositiony=(vertical_movement/self.framerate)+initialpositiony
+        newpositionx=(horizontal_movement/self.FRAMERATE)+initialpositionx
+        newpositiony=(vertical_movement/self.FRAMERATE)+initialpositiony
         if newpositionx<1920 and newpositionx>-10 and newpositiony<1010 and newpositiony>-10:
             ignore,angle=self.GetVelocityAngle((newpositionx,newpositiony),(initialpositionx,initialpositiony))
             self.UpdateRotation_(angle)
             return newpositionx,newpositiony
         else:
-            if self.bounceNumber>5:
-                print('stationary')
+            if self.bounceNumber>2:
                 self.isMoving=False
                 self.lastStaticPosition=self.pos
-                self.bounceNumber=0
+                self.bounceNumber=1
             else:
-                print('bouncing,',self.bounceNumber)
                 self.bounceNumber+=1
                 self.count=0
                 self.lastStaticPosition=self.pos
                 self.UpdateRotation_(90)
-                self.velocity=self.velocity/1.5
+                if newpositionx<-9 or newpositionx>1919:
+                    self.bounceNumber=0
+                    self.velocity=-self.velocity
+                self.velocity=self.velocity/(1/self.COEFFICIENT_RESTITUTION)
             return initialpositionx,initialpositiony
 
     def UpdateRotation_(self,angle):
@@ -64,13 +66,6 @@ class Bullet(AnimatedSprite):
         hMovement=velocity*cos(radians(angle))
         vMovement=velocity*sin(radians(angle))
         vMovement=-(vMovement)+(((9.81/2)*(time)**2)/2)
-        print(f'''
-        velocity = {velocity}
-        angle = {angle}
-        pos = {self.pos}
-        hMovement = {hMovement}
-        vMovement = {vMovement}
-        ''')
         terminalVelocity=3000
         vMovement=terminalVelocity if vMovement>terminalVelocity else vMovement
         self.pos=self.UpdatePosition_(self.pos,hMovement,vMovement)
@@ -92,12 +87,11 @@ class Bullet(AnimatedSprite):
         return hypotenuse,angle
         
     def update(self):
-        self.Animate(self.idleframeList,self.framerate)
+        self.Animate(self.idleframeList,self.FRAMERATE)
         self.image=pygame.transform.scale(self.image,(self.bboxx//5,self.bboxy//5))
         if self.isMoving==True:
             self.GetDisplacement_(self.velocity,self.angle,self.count)
             self.count+=1
-            print(self.count)
         else:
             self.count=0
         self.rect=self.image.get_rect()
@@ -126,7 +120,7 @@ def main():
     pygame.display.flip() #flip updates a display that is idle.
     framerate=60
     bullet=Bullet()
-    bullet.framerate=framerate
+    bullet.FRAMERATE=framerate
     mouse=MouseObject()
     allsprites=pygame.sprite.RenderPlain((bullet,mouse)) #sprite group RenderPlain() draws all the sprites it contains into the surface. 
     clock=pygame.time.Clock() #clock helps track time.

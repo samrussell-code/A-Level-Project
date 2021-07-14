@@ -24,8 +24,8 @@ class Bullet(AnimatedSprite):
         self.isMoving=False
         self.pos=1920/2,1080/2
         self.velocity,self.angle,self.count=0,0,0
-        self.framerate=60
-        self.Animate(self.idleframeList,self.framerate)
+        self.FRAMERATE=60
+        self.Animate(self.idleframeList,self.FRAMERATE)
         self.bboxx,self.bboxy=self.image.get_size()
         self.lastStaticPosition=self.pos
         
@@ -46,8 +46,8 @@ class Bullet(AnimatedSprite):
 
     def UpdatePosition_(self,initialposition,horizontal_movement,vertical_movement):
         initialpositionx,initialpositiony=initialposition
-        newpositionx=(horizontal_movement/self.framerate/2)+initialpositionx
-        newpositiony=(vertical_movement/self.framerate/2)+initialpositiony
+        newpositionx=(horizontal_movement/self.FRAMERATE/2)+initialpositionx
+        newpositiony=(vertical_movement/self.FRAMERATE/2)+initialpositiony
         ignore,self.angle=self.GetVelocityAngle((newpositionx,newpositiony),(initialpositionx,initialpositiony))
         self.UpdateRotation_(self.angle)
         if newpositionx<1950 and newpositionx>-30 and newpositiony<1110 and newpositiony>-30:
@@ -83,7 +83,7 @@ class Bullet(AnimatedSprite):
         return hypotenuse,angle
         
     def update(self):
-        self.Animate(self.idleframeList,self.framerate)
+        self.Animate(self.idleframeList,self.FRAMERATE)
         self.image=pygame.transform.scale(self.image,(self.bboxx//5,self.bboxy//5))
         if self.isMoving==True:
             self.GetDisplacement_(self.velocity,self.angle,self.count)
@@ -118,7 +118,7 @@ def main():
     pygame.display.flip() #flip updates a display that is idle.
     framerate=60
     bullet=Bullet()
-    bullet.framerate=framerate
+    bullet.FRAMERATE=framerate
     mouse=MouseObject()
     allsprites=pygame.sprite.RenderPlain((bullet,mouse)) #sprite group RenderPlain() draws all the sprites it contains into the surface. 
     clock=pygame.time.Clock() #clock helps track time.
