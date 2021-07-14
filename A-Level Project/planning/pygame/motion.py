@@ -25,28 +25,29 @@ class Bullet(AnimatedSprite):
         self.pos=1920/2,1080/2
         self.velocity,self.angle,self.count=0,0,0
         
-    def DoMaths_(self,initialposition,horizontal_movement,vertical_movement):
+    def UpdatePosition_(self,initialposition,horizontal_movement,vertical_movement):
         initialpositionx,initialpositiony=initialposition
         newpositionx=(horizontal_movement/144)+initialpositionx
         newpositiony=(vertical_movement/144)+initialpositiony
         if newpositionx<2000 and newpositionx>0 and newpositiony<1080 and newpositiony>0:
             return newpositionx,newpositiony
         else:
-            return initialpositionx,initialpositiony
             self.isMoving=False
+            return initialpositionx,initialpositiony
+
         
-    def GetDisplacement(self,velocity=0.01,angle=0.01,time=0):
+    def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
+        hMovement=velocity*cos(radians(angle))
+        vMovement=velocity*sin(radians(angle))
+        vMovement=-(vMovement)+(((9.81/2)*(time)**2)/2)
         print(f'''
         velocity = {velocity}
         angle = {angle}
         pos = {self.pos}
+        hMovement = {hMovement}
+        vMovement = {vMovement}
         ''')
-        hMovement=velocity*cos(radians(angle))
-        vMovement=velocity*sin(radians(angle))
-        hMovement=hMovement*time
-        vMovement=-(vMovement*time)+(((9.81/2)*(time)**2)/2)
-
-        self.pos=self.DoMaths_(self.pos,hMovement,vMovement)
+        self.pos=self.UpdatePosition_(self.pos,hMovement,vMovement)
         
     def GetVelocityAngle(self,forcePosition,objectPosition):
         dY=forcePosition[1]-objectPosition[1] #y is inversed so a negative y is upwards and a positive y is downwards
@@ -61,16 +62,16 @@ class Bullet(AnimatedSprite):
             angle=abs(angle)+180
         elif dY>0 and dX>0: #270 to 360
             angle=90-abs(angle)+270
-        hypotenuse=hypotenuse/5
+        hypotenuse=hypotenuse*4
         return hypotenuse,angle
         
     def update(self):
         self.Animate(self.idleframeList,60)
         self.image=pygame.transform.scale(self.image,(50,50))
         if self.isMoving==True:
-            self.GetDisplacement(self.velocity,self.angle,self.count)
-            print(self.velocity)
+            self.GetDisplacement_(self.velocity,self.angle,self.count)
             self.count+=1
+            print(self.count)
         else:
             self.count=0
         self.rect=self.image.get_rect()
