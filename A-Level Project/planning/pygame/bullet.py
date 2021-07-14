@@ -28,8 +28,8 @@ class Bullet(AnimatedSprite):
         self.velocity,self.angle,self.count=0,0,0
         self.Animate(self.idleframeList,self.FRAMERATE)
         self.bboxx,self.bboxy=self.image.get_size()
-        self.lastStaticPosition=self.pos
         self.bounceNumber=1
+        self.xDirection=3
         
     def UpdatePosition_(self,initialposition,horizontal_movement,vertical_movement):
         initialpositionx,initialpositiony=initialposition
@@ -42,16 +42,15 @@ class Bullet(AnimatedSprite):
         else:
             if self.bounceNumber>2:
                 self.isMoving=False
-                self.lastStaticPosition=self.pos
                 self.bounceNumber=1
             else:
                 self.bounceNumber+=1
                 self.count=0
-                self.lastStaticPosition=self.pos
-                self.UpdateRotation_(90)
                 if newpositionx<-9 or newpositionx>1919:
-                    self.bounceNumber=0
+                    self.bounceNumber=3
                     self.velocity=-self.velocity
+                else:
+                    self.UpdateRotation_(self.angle)
                 self.velocity=self.velocity/(1/self.COEFFICIENT_RESTITUTION)
             return initialpositionx,initialpositiony
 
@@ -73,8 +72,9 @@ class Bullet(AnimatedSprite):
     def GetVelocityAngle(self,forcePosition,objectPosition):
         dY=forcePosition[1]-objectPosition[1] #y is inversed so a negative y is upwards and a positive y is downwards
         dX=forcePosition[0]-objectPosition[0] #x is not inversed so a negative x is left and positive x is right
+        self.xDirection=dX
         hypotenuse=sqrt((dY**2)+(dX**2)) #this is always positive
-        angle=degrees(atan(dY/dX)) if dX!=0 and hypotenuse>10 else 90
+        angle=degrees(atan(dY/dX)) if (dX!=0 and hypotenuse>2) else 0 if dX>0 else 180 
         if dY<0 and dX>0:#0 to 90
             angle=abs(angle)
         elif dY<0 and dX<0: #90 to 180
@@ -94,6 +94,7 @@ class Bullet(AnimatedSprite):
             self.count+=1
         else:
             self.count=0
+            self.UpdateRotation_(180) if self.xDirection<-1 else self.UpdateRotation_(0) if self.xDirection>1 else self.UpdateRotation_(270) 
         self.rect=self.image.get_rect()
         self.rect.center=self.pos
 
