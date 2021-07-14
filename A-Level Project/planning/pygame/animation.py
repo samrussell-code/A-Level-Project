@@ -29,7 +29,10 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.linearIndex+=1
             if self.linearIndex>=(len(frameList))*slowness:
                 self.linearIndex=0
-            self.image=frameList[self.linearIndex//slowness]
+            try:
+                self.image=frameList[self.linearIndex//slowness]
+            except:
+                self.image=frameList[self.linearIndex]
             self.rect=self.image.get_rect()
 
         elif animationType=='boomerang':
