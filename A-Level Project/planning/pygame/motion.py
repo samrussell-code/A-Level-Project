@@ -28,28 +28,37 @@ class Bullet(AnimatedSprite):
         self.Animate(self.idleframeList,self.framerate)
         self.bboxx,self.bboxy=self.image.get_size()
         self.lastStaticPosition=self.pos
+        self.bounceNumber=0
         
     def UpdatePosition_(self,initialposition,horizontal_movement,vertical_movement):
         initialpositionx,initialpositiony=initialposition
         newpositionx=(horizontal_movement/self.framerate)+initialpositionx
         newpositiony=(vertical_movement/self.framerate)+initialpositiony
-        if newpositionx<1950 and newpositionx>-30 and newpositiony<1110 and newpositiony>-30:
+        if newpositionx<1920 and newpositionx>-10 and newpositiony<1010 and newpositiony>-10:
             ignore,angle=self.GetVelocityAngle((newpositionx,newpositiony),(initialpositionx,initialpositiony))
-            self.UpdateRotation_(vertical_movement,angle)
+            self.UpdateRotation_(angle)
             return newpositionx,newpositiony
         else:
-            self.isMoving=False
-            self.lastStaticPosition=self.pos
-            self.UpdateRotation_(vertical_movement,0)
+            if self.bounceNumber>5:
+                print('stationary')
+                self.isMoving=False
+                self.lastStaticPosition=self.pos
+                self.bounceNumber=0
+            else:
+                print('bouncing,',self.bounceNumber)
+                self.bounceNumber+=1
+                self.count=0
+                self.lastStaticPosition=self.pos
+                self.UpdateRotation_(90)
+                self.velocity=self.velocity/1.5
             return initialpositionx,initialpositiony
 
-    def UpdateRotation_(self,vVelocity,angle):
+    def UpdateRotation_(self,angle):
         originalImage=self.image
         self.image=pygame.transform.rotate(originalImage,angle)
         x,y=self.rect.center
         self.rect=self.image.get_rect()
         self.rect.center=(x,y)
-        print(vVelocity)
 
     def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
         hMovement=velocity*cos(radians(angle))
