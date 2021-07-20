@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>62c4e1bb-ed24-468a-861c-ac0e8a2f1b28</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>planning\pygame\bullet.py</StartupFile>
+    <StartupFile>main\main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -26,6 +26,10 @@
     <Compile Include="planning\merge_sort\using_listsortmanager.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="main\main.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="planning\pygame\objects.py" />
     <Compile Include="planning\pygame\bullet.py" />
     <Compile Include="planning\pygame\spritesheet.py" />
     <Compile Include="planning\pygame\line_by_line_chimp.py">
@@ -64,8 +68,27 @@
     </Interpreter>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="planning\pygame\imagedata\bullet-idle_1.png" />
+    <Content Include="planning\pygame\imagedata\bullet-particle_1.png" />
+    <Content Include="planning\pygame\imagedata\bullet-particle_2.png" />
+    <Content Include="planning\pygame\imagedata\bullet-particle_3.png" />
+    <Content Include="planning\pygame\imagedata\bullet-particle_4.png" />
     <Content Include="planning\pygame\imagedata\chimp.bmp" />
+    <Content Include="planning\pygame\imagedata\nothing_1.png" />
+    <Content Include="planning\pygame\imagedata\null_1.png" />
     <Content Include="planning\pygame\imagedata\punch.wav" />
+    <Content Include="planning\pygame\imagedata\tank-idle_1.png" />
+    <Content Include="planning\pygame\imagedata\tank-moving_1.png" />
+    <Content Include="planning\pygame\imagedata\tank-moving_2.png" />
+    <Content Include="planning\pygame\imagedata\tanknozzle-idle_1.png" />
+    <Content Include="planning\pygame\imagedata\tanknozzle-moving_1.png" />
+    <Content Include="planning\pygame\imagedata\tanknozzle-moving_2.png" />
+    <Content Include="planning\pygame\imagedata\tanknozzle-moving_3.png" />
+    <Content Include="planning\pygame\imagedata\tanknozzle-moving_4.png" />
+    <Content Include="planning\pygame\imagedata\tanknozzle-moving_5.png" />
+    <Content Include="planning\pygame\imagedata\tanknozzle-moving_6.png" />
+    <Content Include="planning\pygame\imagedata\tanknozzle-moving_7.png" />
+    <Content Include="planning\pygame\imagedata\tanknozzle-moving_8.png" />
     <Content Include="planning\pygame\imagedata\whiff.wav" />
     <Content Include="planning\pygame\imagedata\fist.bmp" />
   </ItemGroup>

@@ -1,21 +1,53 @@
 import os, sys, random
-from math import *
 import pygame
+from math import *
 from pygame.locals import *
-from planning.pygame.animation import AnimatedSprite
-def CreateFrameList(stateName):
+
+class AnimatedSprite(pygame.sprite.Sprite):
     '''
-    CreateFrameList(spriteName)
-    Creates a dictionary of images loaded from imagedata under the same prefix
+    AnimatedSprite(pygame-Sprite)
+    My building block for all of my simple sprites.
+    Contains the animate method which allows it to shift between different frames in different fashions e.g. random, boomerang, linear
+    isIdle (Bool), increasing (Bool)
     '''
-    loadlist=[]
-    for file in os.listdir('planning/pygame/imagedata'):
-        if os.path.isfile(os.path.join('planning/pygame/imagedata', file)) and (stateName+'_') in str(file) and ('.png' in str(file) or '.jpg' in str(file)): 
-            loadlist.append(file)
-    frameList=[]
-    for filename in loadlist:
-        frameList.append(pygame.image.load(str('planning/pygame/imagedata/')+str(filename)))
-    return frameList
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.linearIndex=0
+        self.boomerangIndex=0
+        self.randomIndex=0
+        self.isIdle=True     
+        self.increasing=True
+    def Animate(self,frameList,slowness,animationType='linear'):
+        '''
+        Animate(frameList,slowness,animationType)
+        Animates the sprite with the list input.
+        '''
+        if animationType=='linear':
+            self.linearIndex+=1
+            if self.linearIndex>=(len(frameList))*slowness:
+                self.linearIndex=0
+            try:
+                self.image=frameList[self.linearIndex//slowness]
+            except:
+                self.image=frameList[self.linearIndex]
+            self.rect=self.image.get_rect()
+        elif animationType=='boomerang':
+            if self.boomerangIndex>=(len(frameList))*slowness:
+                self.increasing=False;self.boomerangIndex-=1
+            elif self.boomerangIndex==0:
+                self.increasing=True;self.boomerangIndex+=1
+            self.image=frameList[self.boomerangIndex//slowness]
+            self.rect=self.image.get_rect()
+            self.boomerangIndex=self.boomerangIndex+1 if self.increasing==True else self.boomerangIndex-1
+        elif animationType=='random':
+            if self.randomIndex>=slowness:
+                self.randomImage=random.randint(0,((len(frameList)))-1)
+                self.image=frameList[self.randomImage]
+                self.rect=self.image.get_rect()
+                self.randomIndex=0
+            self.randomIndex+=1
+            return
+
 
 class Particle(AnimatedSprite):
     def __init__(self,animationName='null',FRAMERATE=60,lifespan=0.3,parentPos=(-1000,-1000)):
@@ -29,14 +61,14 @@ class Particle(AnimatedSprite):
         self.empty=CreateFrameList('nothing')
         self.Animate(self.empty,self.FRAMERATE)
     def DoNothing(self):
-        self.Animate(self.empty,60)
+        self.Animate(self.empty,60,'boomerang')
     def update(self):
         if self.isIdle==False:
             if self.age<self.LIFESPAN:
-                print(self.age,self.LIFESPAN)
                 self.age+=1
                 self.Animate(self.animationList,self.FRAMERATE)
-                self.rect.center=self.relativePos
+                self.image=pygame.transform.scale(self.image,(84,84))
+                self.rect.topleft=(self.relativePos[0]-40,self.relativePos[1]-20)
             else:
                 self.DoNothing()
                 self.isIdle=True
@@ -44,7 +76,42 @@ class Particle(AnimatedSprite):
             self.age=0
             self.isIdle=True
             self.DoNothing()
-            
+
+
+class PlayerTank(AnimatedSprite):
+    '''
+    PlayerTank
+    Methods:
+    '''
+    def __init__(self):
+        super().__init__()
+        self.tankmovingframeList=CreateFrameList('tank-moving') #collects all the images for the tank into a dictionary
+        self.tankidleframeList=CreateFrameList('tank-idle')
+        self.nozzle=TankNozzle()
+    def update(self):
+        '''
+        update()
+        updates playertank every frame
+        '''
+        self.Animate(self.tankmovingframeList,60) if self.isIdle==True else self.Animate(self.tankmovingframeList,10)
+        pos = (960,540)
+        self.nozzle.relativePos=pos
+        self.rect.center=pos
+
+class TankNozzle(AnimatedSprite):
+    '''
+    TankNozzle(AnimatedSprite)
+    The nozzle component spawned by tank on init
+    '''
+    def __init__(self):
+        super().__init__()
+        self.movingframeList=CreateFrameList('tanknozzle-moving')
+        self.idleframeList=[self.movingframeList[3]];self.boomerangIndex=30
+        self.relativePos=0,0
+    def update(self):
+        self.Animate(self.idleframeList,10) if self.isIdle==True else self.Animate(self.movingframeList,10,'boomerang')
+        self.rect.center=self.relativePos
+
 class Bullet(AnimatedSprite):
     '''
     Bullet(AnimatedSprite)
@@ -65,7 +132,8 @@ class Bullet(AnimatedSprite):
         self.bboxx,self.bboxy=self.image.get_size() #sets up the initial collision box
         self.bounceNumber=1
         self.xDirection=3
-        self.particle=Particle('bullet-particle',60,0.64,self.pos)#creates the particle that will follow
+        self.particle=Particle('bullet-particle',60,0.4,self.pos)#creates the particle that will follow
+        self.particle.FRAMERATE=5
         
     def UpdatePosition_(self,initialposition,horizontal_movement,vertical_movement): #takes the current position and updates it based on the horizontal and vertical components included
         '''
@@ -147,52 +215,78 @@ class Bullet(AnimatedSprite):
 
 
 class MouseObject(AnimatedSprite):
-    '''
-    MouseObject(AnimatedSprite)
-    Class that represents the users mouse.
-    '''
     def __init__(self):
         super().__init__()
-        self.image=pygame.Surface([10,10])        
-        
+        self.image=pygame.Surface([10,10])              
     def update(self):
         self.pos = pygame.mouse.get_pos()
         self.rect=self.image.get_rect()
         self.rect.center=self.pos
 
-def main():
+
+def CreateFrameList(stateName):
+    '''
+    CreateFrameList(spriteName)
+    Creates a dictionary of images loaded from imagedata under the same prefix
+    '''
+    loadlist=[]
+    for file in os.listdir('planning/pygame/imagedata'):
+        if os.path.isfile(os.path.join('planning/pygame/imagedata', file)) and (stateName+'_') in str(file) and ('.png' in str(file) or '.jpg' in str(file)):
+            loadlist.append(file)
+    frameList=[]
+    for filename in loadlist:
+        frameList.append(pygame.image.load(str('planning/pygame/imagedata/')+str(filename)))
+    return frameList
+def GameWindowSetup():
+    '''
+    GameWindowSetup() sets up the pygame window with the tank and all its components.
+    '''
     pygame.init()
     screen=pygame.display.set_mode((1920,1080)) #set display size.
     pygame.display.set_caption('Tank Animation')
-    pygame.mouse.set_visible(0)
+    pygame.mouse.set_visible(1)
     background=pygame.Surface(screen.get_size()) #creates a surface based on screen size.
     background=background.convert()
     background.fill((250,250,250))
     screen.blit(background, (0,0)) #creates the background on the overarching screen surface.
     pygame.display.flip() #flip updates a display that is idle.
-    framerate=60
-    bullet=Bullet(framerate)
-    mouse=MouseObject()
-    allsprites=pygame.sprite.RenderPlain((bullet,bullet.particle,mouse)) #sprite group RenderPlain() draws all the sprites it contains into the surface. 
+    tank=PlayerTank()
+    bullet=Bullet()
+    allsprites=pygame.sprite.RenderPlain((tank,tank.nozzle,bullet,bullet.particle)) #sprite group RenderPlain() draws all the sprites it contains into the surface. 
     clock=pygame.time.Clock() #clock helps track time.
-
-    while True:
-        clock.tick(framerate) #setting a maximum framerate for the animation.
-        for event in pygame.event.get():
-            if event.type==QUIT:
-                return
-            elif event.type==KEYDOWN and event.key==K_ESCAPE:
-                return
-            elif event.type==MOUSEBUTTONDOWN and event.button==1 and bullet.isMoving==False:
-                bullet.velocity,bullet.angle=bullet.GetVelocityAngle(event.pos,bullet.pos)
-                bullet.isMoving=True
-
-
-        allsprites.update()
-        screen.blit(background, (0,0))
-        allsprites.draw(screen)
-        pygame.display.flip()
-    
-
-if __name__=='__main__':
-    main()
+    return screen,background,tank,allsprites,clock,bullet
+def EventChecker(tank,clock,bullet):
+    clock.tick(60) #setting a maximum framerate for the animation.
+    for event in pygame.event.get():
+        if event.type==QUIT:
+            return
+        elif event.type==KEYDOWN and event.key==K_ESCAPE:
+            return
+        elif event.type==KEYDOWN and event.key==K_d:
+            tank.isIdle=False            
+        elif event.type==KEYDOWN and event.key==K_a:
+            tank.isIdle=False
+        elif event.type==KEYDOWN and event.key==K_w:
+            tank.nozzle.isIdle=False
+            tank.nozzle.increasing=True
+        elif event.type==KEYDOWN and event.key==K_s:
+            tank.nozzle.isIdle=False
+            tank.nozzle.increasing=False
+        elif event.type==KEYUP and event.key==K_w:
+            tank.nozzle.isIdle=True
+            tank.nozzle.idleframeList=[tank.nozzle.image]
+        elif event.type==KEYUP and event.key==K_s:
+            tank.nozzle.isIdle=True
+            tank.nozzle.idleframeList=[tank.nozzle.image]
+        elif event.type==KEYUP and event.key==K_d:
+            tank.isIdle=True            
+        elif event.type==KEYUP and event.key==K_a:
+            tank.isIdle=True
+        elif event.type==MOUSEBUTTONDOWN and event.button==1 and bullet.isMoving==False:
+            bullet.velocity,bullet.angle=bullet.GetVelocityAngle(event.pos,bullet.pos)
+            bullet.isMoving=True
+def RefreshScreen(screen,spritegroup,background):
+    spritegroup.update()
+    screen.blit(background, (0,0))
+    spritegroup.draw(screen)
+    pygame.display.flip()

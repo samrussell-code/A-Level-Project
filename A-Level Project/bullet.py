@@ -171,7 +171,8 @@ def main():
     screen.blit(background, (0,0)) #creates the background on the overarching screen surface.
     pygame.display.flip() #flip updates a display that is idle.
     framerate=60
-    bullet=Bullet(framerate)
+    bullet=Bullet()
+    bullet.FRAMERATE=framerate
     mouse=MouseObject()
     allsprites=pygame.sprite.RenderPlain((bullet,bullet.particle,mouse)) #sprite group RenderPlain() draws all the sprites it contains into the surface. 
     clock=pygame.time.Clock() #clock helps track time.
