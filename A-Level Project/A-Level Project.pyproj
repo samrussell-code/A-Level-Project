@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>62c4e1bb-ed24-468a-861c-ac0e8a2f1b28</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>main\main.py</StartupFile>
+    <StartupFile>planning\socket\server with threads.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>

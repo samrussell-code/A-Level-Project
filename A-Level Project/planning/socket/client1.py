@@ -4,18 +4,21 @@ import threading
 import time
 
 clientObj = socket.socket()       # Create a socket object
-host = socket.gethostname() # Get local machine name e.g. SamWorkstation
+clientName = socket.gethostname() # Get local machine name e.g. SamWorkstation
 port = 25520                # Reserve a port for your service.
 
-clientObj.connect((host, port))
-username=str(host+' #'+str(random.randint(100000,999999)))
+hostname=str(input('Enter password:'))
+clientObj.connect((hostname, port))
+username=str(clientName+' #'+str(random.randint(100000,999999)))
 clientObj.send(username.encode())
 welcomeMessage=clientObj.recv(65536).decode()
 print(welcomeMessage)
-def CheckForUpdate(client,username):
+
+
+def CheckForUpdate(client,username): #waits to recieve information from the server - always called in the background.
     while True:
-        welcome=client.recv(65536).decode()
-        print(welcome)
+        recievedMessage=client.recv(65536).decode()
+        print(recievedMessage)
     return
 
 print('Connection started at ',round(time.time()))
