@@ -12,7 +12,7 @@ import socket,threading,time
 #Return '1' if password does not match correct password.
 #If the username and password are correct, details must be fetched back to fill out variables for the Account client class.
 
-recv_opcode=8
+recv_opcode=0
 recv_operand=('John Smith','password123')
 
 REGISTER_ACCOUNT(recv_operand) if recv_opcode==0 else LOGIN_ACCOUNT(recv_operand) if 1 else ERROR_CATCH(1)
