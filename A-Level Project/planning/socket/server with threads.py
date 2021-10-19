@@ -4,7 +4,8 @@ import time
 
 def NewServer():
     server = socket.socket()         #creates a server
-    host = socket.gethostname() #gets the name of the computer running the server
+    host = socket.gethostbyname('SamWorkstation') #gets the name of the computer running the server
+    print(host)
     port = 25520
     server.bind((host, port))      #opens the specified port for the specified hostname
     chatlogName=str('planning/socket/data/'+'chatlog - '+str(round(time.time()))+'.txt') #creates the name and location of the text file to store the data transfer log
@@ -40,31 +41,39 @@ class Client:
             for line in chatlog.readlines(): #sends the user every previous message before they joined. - this only activates after they send the first message for some reason
                 self.socketClientObject.send(line.encode())  
                 lastLine=line          
-        while True:
+                isConnected=True
+        while isConnected==True:
             with open(self.chatlogName, 'r') as chatlog: #reads the final line in a loop until the final line has changed, meaning the file has been updated
                 newlastLine=chatlog.readlines()[-1]
                 if newlastLine!=lastLine:
                     isEmpty=True if lastLine=='' else False
                     lastLine=newlastLine
                     if isEmpty==False:
-                        self.socketClientObject.send(str('\n'+lastLine).encode()) #sends the final line out to the object.
+                        try:
+                            self.socketClientObject.send(str('\n'+lastLine).encode()) #sends the final line out to the object.
+                        except:
+                            print('cannot message client, client has left.')
+                            isConnected=False
 
     def RecieverNode(self,IP,port,socketClientObject,userNumber): 
         '''
         RecieverNode(self,IP,port,socketClientObject,userNumber):
         Subroutine ran in a thread that checks for recieved data from the client and converts that data into a writeable format to be put into the log and managed by the sender node.
         '''
-        username=socketClientObject.recv(65536).decode()  #the first data recieved should always be the username, or workstation name
-        connectionMessage=str('You have successfully connected, '+username)
-        socketClientObject.send(connectionMessage.encode()) #sends back the confirmation message to agree to a connection.
-        rData=''
-        threading.Thread(target=self.SenderNode,daemon=True).start() #creates the sender node
-        while rData!='-END':
-            rData=socketClientObject.recv(65536).decode() #retreives any data it can
-            sData=str('\n\n'+username+': '+rData)    #creates a formatted version, then inputs it into the log file
-            with open(self.chatlogName, 'a') as chatlog:
-                chatlog.write(sData)
-                #writes the users message into the chatlog
+        try:
+            username=socketClientObject.recv(65536).decode()  #the first data recieved should always be the username, or workstation name
+            connectionMessage=str('You have successfully connected, '+username)
+            socketClientObject.send(connectionMessage.encode()) #sends back the confirmation message to agree to a connection.
+            rData=''
+            threading.Thread(target=self.SenderNode,daemon=True).start() #creates the sender node
+            while rData!='-END':
+                rData=socketClientObject.recv(65536).decode() #retreives any data it can
+                sData=str('\n\n'+username+': '+rData)    #creates a formatted version, then inputs it into the log file
+                with open(self.chatlogName, 'a') as chatlog:
+                    chatlog.write(sData)
+                    #writes the users message into the chatlog
+        except:
+            print('User has disconnected')
         return
 
 server,chatlogName=NewServer()

@@ -1,0 +1,23 @@
+Server started at: 1634646530
+
+
+
+DESKTOP-G5S3KD9 #705731: hello
+
+SamWorkstation #149718: how are you doing
+
+DESKTOP-G5S3KD9 #705731: i am doing well
+
+SamWorkstation #149718: nice
+
+SamWorkstation #149718: same lol
+
+DESKTOP-G5S3KD9 #705731: huh
+
+DESKTOP-G5S3KD9 #705731: this is working quite well
+
+DESKTOP-G5S3KD9 #705731: im impressed
+
+DESKTOP-G5S3KD9 #705731: ok so i can communicate with a desktop locally, this is a good start
+
+SamWorkstation #149718: hi
