@@ -50,8 +50,17 @@ def NewServer():
     return server
 
 class ClientHandler:
-    def __init__(self,socketInfo):
-        return
+    def __init__(self,socketInfo,socketObject):
+        self.socketObject=socketObject
+        self.StartThread(socketInfo)
+    def StartThread(self,socketInfo):
+        threading.Thread(target=self.RecieveData,daemon=True).start()
+    def RecieveData(self):
+        try:
+            operation=self.socketObject.recv(65536).decode()
+            print(operation)
+        except:
+            ERR_CATCH(7)
 
 server=NewServer()
 connections={}
@@ -59,7 +68,7 @@ while True:
     server.listen()
     socketObject,socketInfo=server.accept()
     if socketObject not in connections:  
-        connections.update({socketObject:ClientHandler(socketInfo)})
+        connections.update({socketObject:ClientHandler(socketInfo,socketObject)})
 
 #recv_opcode,recv_operand=0,('John Smithus','password123')#temporary data #this is where we want to recieve the client data.
 #(username,password),connection=recv_operand,dbConnect('ACCOUNTS')
