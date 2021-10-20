@@ -39,3 +39,5 @@ recv_opcode,recv_operand=0,('John Smithus','password123')#temporary data
 (username,password),connection=recv_operand,dbConnect('ACCOUNTS')
 dbCreateTable(connection, sql_create_profiles_table) if connection is not None else ERR_CATCH(3)
 REGISTER_ACCOUNT(username,password,connection) if recv_opcode==0 else LOGIN_ACCOUNT(username,password,connection) if recv_opcode==1 else ERR_CATCH(1)
+
+#Encrypting a password
