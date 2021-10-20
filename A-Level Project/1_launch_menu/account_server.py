@@ -9,7 +9,7 @@
 #example data would be '01' and then, seperately, ['John Smith','password123']. First, tuple[0] is taken and checked against every database username. Return '0' if username is not in database.
 #Return '1' if password does not match correct password.
 #If the username and password are correct, details must be fetched back to fill out variables for the Account client class.
-import sqlite3
+import sqlite3, socket, threading
 from err import ERR_CATCH
 def dbCreateTable(connection,create_table_sql):#only run this to create a new table in the db
     cursor=connection.cursor() #used to modify database
@@ -40,9 +40,30 @@ def REGISTER_ACCOUNT(username,password,connection):
 def LOGIN_ACCOUNT(username,password,connection):
     return
 
-recv_opcode,recv_operand=0,('John Smithus','password123')#temporary data #this is where we want to recieve the client data.
-(username,password),connection=recv_operand,dbConnect('ACCOUNTS')
-dbCreateTable(connection, sql_create_profiles_table) if connection is not None else ERR_CATCH(3)
-REGISTER_ACCOUNT(username,password,connection) if recv_opcode==0 else LOGIN_ACCOUNT(username,password,connection) if recv_opcode==1 else ERR_CATCH(1)
+
+#server stuff
+def NewServer():
+    server=socket.socket()
+    host=socket.gethostname()
+    port=25520
+    server.bind((host,port))
+    return server
+
+class ClientHandler:
+    def __init__(self,socketInfo):
+        return
+
+server=NewServer()
+connections={}
+while True:
+    server.listen()
+    socketObject,socketInfo=server.accept()
+    if socketObject not in connections:  
+        connections.update({socketObject:ClientHandler(socketInfo)})
+
+#recv_opcode,recv_operand=0,('John Smithus','password123')#temporary data #this is where we want to recieve the client data.
+#(username,password),connection=recv_operand,dbConnect('ACCOUNTS')
+#dbCreateTable(connection, sql_create_profiles_table) if connection is not None else ERR_CATCH(3)
+#REGISTER_ACCOUNT(username,password,connection) if recv_opcode==0 else LOGIN_ACCOUNT(username,password,connection) if recv_opcode==1 else ERR_CATCH(1)
 
 
