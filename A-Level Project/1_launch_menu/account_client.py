@@ -2,6 +2,7 @@
 #By the time the password is sent to the server, it should already be encrypted clientside.
 from err import ERR_CATCH
 import os, socket, threading, base64
+os.mkdir('client') if  not os.path.exists('client') else print('Do not need to make client path, already exists.')
 def TOKEN_FOUND(password):
     try:
         with open('client//username.txt','r') as file: username=file.readline()
