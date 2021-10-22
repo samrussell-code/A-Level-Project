@@ -31,15 +31,24 @@ def dbConnect(filename):
 def REGISTER_ACCOUNT(username,password,connection):
     cursor=connection.cursor()
     cursor.execute(f'''SELECT id FROM profiles WHERE username="{username}"''')
-    result=cursor.fetchall();print(result)
+    result=cursor.fetchall()
     if len(result)==0:
         dbAddToTable(connection,'INSERT INTO profiles (username, password) VALUES (?,?);',(username,password))
         print('Successfully registered your account.')
     else:
         ERR_CATCH(2)
 def LOGIN_ACCOUNT(username,password,connection):
+    cursor=connection.cursor()
+    cursor.execute(f'''SELECT password FROM profiles WHERE username="{username}"''')
+    result=cursor.fetchone() #ask miss, how do i fetch from sql db in string format rather than tuple/list format for a single item
+    result=result[0]
+    LOGIN_SUCCESS(username,cursor) if result==password else ERR_CATCH(9) if len(result)==0 else ERR_CATCH(10)
     return
-
+def LOGIN_SUCCESS(username,cursor):
+    cursor.execute(f'''SELECT * FROM profiles WHERE username="{username}"''')
+    result=cursor.fetchall()
+    id=result[0][0] #result 0 is everything in this user's row. [0][0] is the id position 0 in the users row.
+    print('User',id,'was granted login access')
 
 #server stuff
 def NewServer():
@@ -57,10 +66,13 @@ class ClientHandler:
         threading.Thread(target=self.RecieveData,daemon=True).start()
     def RecieveData(self):
         try:
-            operation=self.socketObject.recv(65536).decode()
-            print(operation)
+            operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
         except:
             ERR_CATCH(7)
+        print(operation)
+        recv_opcode,username,password,connection=int(operation[0]),operation[1],operation[2],dbConnect('ACCOUNTS')
+        dbCreateTable(connection, sql_create_profiles_table) if connection is not None else ERR_CATCH(3)
+        REGISTER_ACCOUNT(username,password,connection) if recv_opcode==0 else LOGIN_ACCOUNT(username,password,connection) if recv_opcode==1 else ERR_CATCH(1)
 
 server=NewServer()
 connections={}
@@ -69,10 +81,5 @@ while True:
     socketObject,socketInfo=server.accept()
     if socketObject not in connections:  
         connections.update({socketObject:ClientHandler(socketInfo,socketObject)})
-
-#recv_opcode,recv_operand=0,('John Smithus','password123')#temporary data #this is where we want to recieve the client data.
-#(username,password),connection=recv_operand,dbConnect('ACCOUNTS')
-#dbCreateTable(connection, sql_create_profiles_table) if connection is not None else ERR_CATCH(3)
-#REGISTER_ACCOUNT(username,password,connection) if recv_opcode==0 else LOGIN_ACCOUNT(username,password,connection) if recv_opcode==1 else ERR_CATCH(1)
 
 
