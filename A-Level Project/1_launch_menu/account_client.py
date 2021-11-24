@@ -22,20 +22,12 @@ def TOKEN_MISSING():
     password=str(input('Enter password\n'))
     opcode=int(input('Enter code to 0 register or 1 login\n'))
     try:
-<<<<<<< HEAD
        password_token=EncryptPassword(password)
-=======
-        password_token=(base64.b64encode(password.encode())).decode() #uses b64 to encrypt the password
->>>>>>> 8ea24e7f3e0c40933f7b308018ffe5b05046697f
     except:
         ERR_CATCH(5)
     with open('client//username.txt','w') as file: file.write(username);file.close()
     with open('client//authtoken.txt','w') as file: file.write(password_token);file.close()
     SEND_DATA(opcode,[username,password_token])
-<<<<<<< HEAD
-=======
-
->>>>>>> 8ea24e7f3e0c40933f7b308018ffe5b05046697f
 def SEND_DATA(opcode,data_list):
     data=str(opcode)
     for item in data_list: data+='||'+item #formatting data to be sent
