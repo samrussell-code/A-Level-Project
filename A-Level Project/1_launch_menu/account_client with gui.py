@@ -25,6 +25,7 @@ class LaunchWindow(Tk):
         self.registerButton=Button(text='Register',bg='#eeeeee',fg='#464646',font=self.mediumFont,command=partial(self.ContactServer,0))
         # relx = relx - 1/2 of relwidth
         # rely = rely - 1/2 of relheight
+        #SET UP RELATIVE POSITIONS OF OBJECTS IN LOGIN SCREEN
         self.gameTitleLabel.place(relx=24/64,rely=3/40,relwidth=1/4,relheight=1/15)
         self.usernameLabel.place(relx=7/16,rely=7/40,relwidth=1/8,relheight=1/30)
         self.usernameEntry.place(relx=7/16,rely=9/40,relwidth=1/8,relheight=1/20)
@@ -34,9 +35,12 @@ class LaunchWindow(Tk):
         self.registerButton.place(relx=29/48,rely=28/40,relwidth=1/16,relheight=1/30)
         self.update()
     def ContactServer(self,opcode):
-        username,password=self.usernameEntry.get(),self.passwordEntry.get()
+        username=self.usernameEntry.get()
+        password=self.passwordEntry.get()
+        print(username,password)
         try:
             password_token=self.EncryptPassword(password)
+            print(password_token)
         except:
             ERR_CATCH(5)
         #with open('client//username.txt','w') as file: file.write(username);file.close()
@@ -57,7 +61,7 @@ class LaunchWindow(Tk):
             ERR_CATCH(8)
     def EncryptPassword(self,password):
         token=(hashes.Hash(hashes.SHA512()))
-        token.update(('test').encode())
+        token.update((password).encode())
         token=token.finalize()
         token=str(token)[2:-1]
         return token    

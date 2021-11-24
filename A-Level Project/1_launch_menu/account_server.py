@@ -45,13 +45,15 @@ def LOGIN_ACCOUNT(username,password,connection):
     try:
         result=result[0]
     except:
-        ERR_CATCH(0)
+        pass
     if result==None:
-        ERR_CATCH(10)
-    elif len(result)==0:
         ERR_CATCH(9)
+    elif len(result)==0:
+        ERR_CATCH(10)
     elif result==password:
         LOGIN_SUCCESS(username,cursor)
+    else:
+        ERR_CATCH(10)
     return
 def LOGIN_SUCCESS(username,cursor):
     cursor.execute(f'''SELECT * FROM profiles WHERE username="{username}"''')
