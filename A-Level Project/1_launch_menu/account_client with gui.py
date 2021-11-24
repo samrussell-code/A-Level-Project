@@ -1,6 +1,9 @@
+from err import ERR_CATCH
 from tkinter import *
 import winsound
 from functools import partial
+from cryptography.hazmat.primitives import hashes
+import os, socket, threading
 class LaunchWindow(Tk):
     def __init__(self):
         super().__init__()
@@ -32,6 +35,32 @@ class LaunchWindow(Tk):
         self.update()
     def ContactServer(self,opcode):
         username,password=self.usernameEntry.get(),self.passwordEntry.get()
+        try:
+            password_token=self.EncryptPassword(password)
+        except:
+            ERR_CATCH(5)
+        #with open('client//username.txt','w') as file: file.write(username);file.close()
+        #with open('client//authtoken.txt','w') as file: file.write(password_token);file.close()
+        self.SEND_DATA(opcode,[username,password_token])
+    def SEND_DATA(self,opcode,data_list):
+        data=str(opcode)
+        for item in data_list: data+='||'+item #formatting data to be sent
+        connection=self.CreateConnection()
+        connection.send(data.encode())
+    def CreateConnection(self):
+        socketObject=socket.socket()
+        port=25520
+        try:
+            socketObject.connect(('tank.servegame.com', port))
+            return socketObject
+        except:
+            ERR_CATCH(8)
+    def EncryptPassword(self,password):
+        token=(hashes.Hash(hashes.SHA512()))
+        token.update(('test').encode())
+        token=token.finalize()
+        token=str(token)[2:-1]
+        return token    
     def update(self):
         if self.CheckWindowChange(self.WIDTH)==True:
             self.UpdateFontSize(self.gameTitleLabel,self.titleFont)

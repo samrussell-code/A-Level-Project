@@ -41,8 +41,17 @@ def LOGIN_ACCOUNT(username,password,connection):
     cursor=connection.cursor()
     cursor.execute(f'''SELECT password FROM profiles WHERE username="{username}"''')
     result=cursor.fetchone() #ask miss, how do i fetch from sql db in string format rather than tuple/list format for a single item
-    result=result[0]
-    LOGIN_SUCCESS(username,cursor) if result==password else ERR_CATCH(9) if len(result)==0 else ERR_CATCH(10)
+    print(result)
+    try:
+        result=result[0]
+    except:
+        ERR_CATCH(0)
+    if result==None:
+        ERR_CATCH(10)
+    elif len(result)==0:
+        ERR_CATCH(9)
+    elif result==password:
+        LOGIN_SUCCESS(username,cursor)
     return
 def LOGIN_SUCCESS(username,cursor):
     cursor.execute(f'''SELECT * FROM profiles WHERE username="{username}"''')
