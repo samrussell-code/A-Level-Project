@@ -1,12 +1,8 @@
 #Encrypting a password. The fernet key is pre-loaded, and then used to encrypt the password, away from the server side.
 #By the time the password is sent to the server, it should already be encrypted clientside.
 from err import ERR_CATCH
-<<<<<<< HEAD
 from cryptography.hazmat.primitives import hashes
 import os, socket, threading
-=======
-import os, socket, threading, base64
->>>>>>> 8ea24e7f3e0c40933f7b308018ffe5b05046697f
 os.mkdir('client') if  not os.path.exists('client') else print('Do not need to make client path, already exists.')
 def TOKEN_FOUND(password):
     try:
