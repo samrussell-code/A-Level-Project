@@ -92,5 +92,3 @@ while True:
     socketObject,socketInfo=server.accept()
     if socketObject not in connections:  
         connections.update({socketObject:ClientLogOnHandler(socketInfo,socketObject)})
-
-
