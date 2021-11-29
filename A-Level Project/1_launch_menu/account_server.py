@@ -35,6 +35,7 @@ def REGISTER_ACCOUNT(username,password,connection):
     if len(result)==0:
         dbAddToTable(connection,'INSERT INTO profiles (username, password) VALUES (?,?);',(username,password))
         print('Successfully registered your account.')
+        return True
     else:
         ERR_CATCH(2)
 def LOGIN_ACCOUNT(username,password,connection):
@@ -52,9 +53,9 @@ def LOGIN_ACCOUNT(username,password,connection):
         ERR_CATCH(10)
     elif result==password:
         LOGIN_SUCCESS(username,cursor)
+        return True
     else:
         ERR_CATCH(10)
-    return
 def LOGIN_SUCCESS(username,cursor):
     cursor.execute(f'''SELECT * FROM profiles WHERE username="{username}"''')
     result=cursor.fetchall()
@@ -82,13 +83,19 @@ class ClientHandler:
             ERR_CATCH(7)
         recv_opcode,username,password,connection=int(operation[0]),operation[1],operation[2],dbConnect('ACCOUNTS')
         dbCreateTable(connection, sql_create_profiles_table) if connection is not None else ERR_CATCH(3)
-        self.result=REGISTER_ACCOUNT(username,password,connection) if recv_opcode==0 else LOGIN_ACCOUNT(username,password,connection) if recv_opcode==1 else ERR_CATCH(1)
         if recv_opcode==0:
-            REGISTER_ACCOUNT(username,password,connection)
-            self.SendData(0,['Registered profile and logged in...'])
+            success=REGISTER_ACCOUNT(username,password,connection)
+            if success==True:
+                self.SendData(0,['Registered profile and logged in...'])
+            else:
+                self.SendData(0,['Register failed.'])
+
         elif recv_opcode==1:
-            LOGIN_ACCOUNT(username,password,connection)
-            self.SendData(0,['Logged into account on database...'])
+            success=LOGIN_ACCOUNT(username,password,connection)
+            if success==True:
+                self.SendData(0,['Logged into account on database...'])
+            else:
+                self.SendData(0,['Login failed.'])
         else:
             ERR_CATCH(1)
     def SendData(self,opcode,data_list):
