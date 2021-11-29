@@ -69,7 +69,7 @@ def NewServer():
     server.bind((host,port))
     return server
 
-class ClientLogOnHandler:
+class ClientHandler:
     def __init__(self,socketInfo,socketObject):
         self.socketObject=socketObject
         self.StartThread(socketInfo)
@@ -80,10 +80,22 @@ class ClientLogOnHandler:
             operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
         except:
             ERR_CATCH(7)
-        print(operation)
         recv_opcode,username,password,connection=int(operation[0]),operation[1],operation[2],dbConnect('ACCOUNTS')
         dbCreateTable(connection, sql_create_profiles_table) if connection is not None else ERR_CATCH(3)
-        REGISTER_ACCOUNT(username,password,connection) if recv_opcode==0 else LOGIN_ACCOUNT(username,password,connection) if recv_opcode==1 else ERR_CATCH(1)
+        self.result=REGISTER_ACCOUNT(username,password,connection) if recv_opcode==0 else LOGIN_ACCOUNT(username,password,connection) if recv_opcode==1 else ERR_CATCH(1)
+        if recv_opcode==0:
+            REGISTER_ACCOUNT(username,password,connection)
+            self.SendData(0,['Registered profile and logged in...'])
+        elif recv_opcode==1:
+            LOGIN_ACCOUNT(username,password,connection)
+            self.SendData(0,['Logged into account on database...'])
+        else:
+            ERR_CATCH(1)
+    def SendData(self,opcode,data_list):
+        data=str(opcode)
+        print('sending data', data_list,opcode)
+        for item in data_list: data+='||'+item #formatting data to be sent
+        self.socketObject.send(data.encode())
 
 server=NewServer()
 connections={}
@@ -91,4 +103,4 @@ while True:
     server.listen()
     socketObject,socketInfo=server.accept()
     if socketObject not in connections:  
-        connections.update({socketObject:ClientLogOnHandler(socketInfo,socketObject)})
+        connections.update({socketObject:ClientHandler(socketInfo,socketObject)})
