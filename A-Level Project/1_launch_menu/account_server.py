@@ -9,9 +9,11 @@
 #example data would be '1' and then, seperately, ['John Smith','password123']. First, tuple[0] is taken and checked against every database username. Return '0' if username is not in database.
 #Return '1' if password does not match correct password.
 #If the username and password are correct, details must be fetched back to fill out variables for the Account client class.
-import sqlite3, socket, threading
+import sqlite3, socket, threading, datetime
 from err import ERR_CATCH
-def dbCreateTable(connection,create_table_sql):#only run this to create a new table in the db
+
+def dbCreateTable(connection,create_table_sql):
+    '''only run this to create a new table in the db'''
     cursor=connection.cursor() #used to modify database
     cursor.execute(create_table_sql) #runs the sql formatted command to create a table
 def dbAddToTable(connection,sql_insert,values):
@@ -19,21 +21,44 @@ def dbAddToTable(connection,sql_insert,values):
     cursor.execute(sql_insert,values)
     connection.commit()
     print(cursor.rowcount,'record inserted')
-sql_create_profiles_table="""CREATE TABLE IF NOT EXISTS profiles (
-    id integer PRIMARY KEY,
+sql_create_PROFILE_INFO_table="""CREATE TABLE IF NOT EXISTS PROFILE_INFO (
+    UUID integer PRIMARY KEY,
     username text NOT NULL,
     password blob NOT NULL
+);"""
+sql_create_PROFILE_CONN_HIST_table="""CREATE TABLE IF NOT EXISTS PROFILE_CONN_HIST (
+    CID integer PRIMARY KEY,
+    UUID integer NOT NULL,
+    IPID integer NOT NULL,
+    AccessDate blob NOT NULL,
+    AccessTime blob NOT NULL
+);"""
+sql_create_CONNECTION_IP_table="""CREATE TABLE IF NOT EXISTS CONNECTION_IP (
+    IPID integer PRIMARY KEY,
+    IP text
 );"""
 def dbConnect(filename):
     print('Connecting to',filename,'...')
     connection=sqlite3.connect(str(filename+'.db'))
     return connection
-def REGISTER_ACCOUNT(username,password,connection):
-    cursor=connection.cursor()
-    cursor.execute(f'''SELECT id FROM profiles WHERE username="{username}"''')
+def REGISTER_ACCOUNT(username,password,connection,sockname):
+    cursor=connection.cursor() # checks for any profiles with the username being requested
+    cursor.execute(f'''SELECT UUID FROM PROFILE_INFO WHERE username="{username}"''')
     result=cursor.fetchall()
-    if len(result)==0:
-        dbAddToTable(connection,'INSERT INTO profiles (username, password) VALUES (?,?);',(username,password))
+    ip=str(sockname[0])
+    if len(result)==0: #if username not found in table
+        dbAddToTable(connection,'INSERT INTO PROFILE_INFO (username, password) VALUES (?,?);',(username,password))#adds the username and password to the profile information
+        cursor.execute(f'''SELECT UUID FROM PROFILE_INFO WHERE username="{username}"''')
+        result=cursor.fetchone();UUID=result[0]
+        cursor.execute(f'''SELECT IPID FROM CONNECTION_IP WHERE IP="{ip}"''');result=cursor.fetchone()#attempts to find the connection IP address in the database.
+        if result==None:
+            dbAddToTable(connection,'INSERT INTO CONNECTION_IP (IP) VALUES (?);',([ip]))
+            cursor.execute(f'''SELECT IPID FROM CONNECTION_IP WHERE IP="{ip}"''');result=cursor.fetchone()
+        IPID=result[0]
+        dt=datetime.datetime.now()
+        date=dt.strftime("%x")
+        time=dt.strftime("%X")
+        dbAddToTable(connection,'INSERT INTO PROFILE_CONN_HIST (UUID, IPID, AccessDate, AccessTime) VALUES (?,?,?,?);',(UUID,IPID,date,time))#creates a data access log
         print('Successfully registered your account.')
         return True
     else:
@@ -82,9 +107,9 @@ class ClientHandler:
         except:
             ERR_CATCH(7)
         recv_opcode,username,password,connection=int(operation[0]),operation[1],operation[2],dbConnect('ACCOUNTS')
-        dbCreateTable(connection, sql_create_profiles_table) if connection is not None else ERR_CATCH(3)
+        dbCreateTable(connection, sql_create_PROFILE_INFO_table),dbCreateTable(connection, sql_create_PROFILE_CONN_HIST_table),dbCreateTable(connection, sql_create_CONNECTION_IP_table) if connection is not None else ERR_CATCH(3)
         if recv_opcode==0:
-            success=REGISTER_ACCOUNT(username,password,connection)
+            success=REGISTER_ACCOUNT(username,password,connection,socketObject.getpeername())
             if success==True:
                 self.SendData(0,['Registered profile and logged in...'])
             else:
