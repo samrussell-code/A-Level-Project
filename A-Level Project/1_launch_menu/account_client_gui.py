@@ -4,7 +4,7 @@ import winsound
 from functools import partial
 from cryptography.hazmat.primitives import hashes
 import os, socket, threading
-import pygame
+import pygame, pygame_gui
 class LaunchWindow(Tk):
     def __init__(self):
         super().__init__()
@@ -127,18 +127,30 @@ class PygameWindow():
         self.width,self.height=width,height
         pygame.init()
         self.screen=pygame.display.set_mode(self.rect.size)
+        pygame.display.set_caption('Tank Game')
+        pygame.mouse.set_visible(1)
         self.foreground=None
         self.background=None
-        self.set_foreground('background_menu.png')
-        self.set_background('foreground_menu.png')
-    def set_background(self, image=None):
+        self.set_foreground('menu_title.png','#ffffff',0.5)
+        self.set_background('menu_background.png')
+        self.screen.blit(self.background,(0,0))
+        self.screen.blit(self.foreground, (0,0))
+        pygame.display.flip()
+        pygame.time.delay(10000)
+    def set_background(self, image=None, colourkey=None, scale=1.0):
+        ''' image is the name of the image within the imagedata folder, with file type
+            colourkey is the alpha value colour if there is transparency in the image.
+            scale is the fraction of the screen size that the image should reach.
+        '''
         if image:
-            self.background=pygame.image.load(image)
-    def set_foreground(self,image=None):
+            self.background=pygame.image.load(str('imagedata/')+str(image)).convert_alpha()
+            self.background=pygame.transform.scale(self.background,(round(self.width*scale),round(self.height*scale)))
+            self.background.set_colorkey(colourkey)
+    def set_foreground(self,image=None, colourkey=None, scale=1.0):
         if image:
-            self.foreground=pygame.image.load(image)
-    def load_image(self, image):
-        return pygame.image.load(str('imagedata/')+str(image))#set as fore/back
+            self.foreground=pygame.image.load(str('imagedata/')+str(image)).convert_alpha()
+            self.foreground=pygame.transform.scale(self.foreground,(round(self.width*scale),round(self.height*scale)))
+            self.foreground.set_colorkey(colourkey)
 resX,resY=1280,720
 game_window=PygameWindow(resX,resY)    
 #####################################################
