@@ -124,33 +124,67 @@ class LaunchWindow(Tk):
 class PygameWindow():
     def __init__(self,width,height):
         self.rect=pygame.Rect(0,0,width,height)
-        self.width,self.height=width,height
+        self.screenwidth,self.screenheight=width,height
         pygame.init()
         self.screen=pygame.display.set_mode(self.rect.size)
         pygame.display.set_caption('Tank Game')
         pygame.mouse.set_visible(1)
-        self.foreground=None
-        self.background=None
-        self.set_foreground('menu_title.png','#ffffff',0.5)
-        self.set_background('menu_background.png')
-        self.screen.blit(self.background,(0,0))
-        self.screen.blit(self.foreground, (0,0))
+        self.imageDict={'menu_background':Image('menu_background.png',None,10,10),'menu_title':Image('menu_title.png','#ffffff',2,2)} # all loaded images are stored in dictionary
+        # the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
+        self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5)
+        self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.1)
         pygame.display.flip()
         pygame.time.delay(10000)
-    def set_background(self, image=None, colourkey=None, scale=1.0):
-        ''' image is the name of the image within the imagedata folder, with file type
-            colourkey is the alpha value colour if there is transparency in the image.
-            scale is the fraction of the screen size that the image should reach.
+
+class Image():
+    '''imagename is the filename
+
+       colourkey is the alpha colour
+
+       scaleX/scaleY is the scale of the image to be used by default by a sprite
+    '''
+    def __init__(self,imagename=None,colourkey=None,scaleX=1.0,scaleY=1.0):
+        self.imagename,self.colourkey,self.scaleX,self.scaleY=imagename,colourkey,scaleX,scaleY
+        if imagename!=None:
+            self.image=pygame.image.load(str('imagedata/')+str(self.imagename)).convert_alpha()
+            self.imagewidth,self.imageheight=self.image.get_size() #gets the size before the scale
+            self.image=pygame.transform.scale(self.image,(round(self.imagewidth*scaleX),round(self.imageheight*scaleY)))
+            self.imagewidth,self.imageheight=self.image.get_size() #gets the size after the scale
+            self.image.set_colorkey(colourkey)
+
+class Sprite():
+    def __init__(self,screen,image=None,isCollider=False,pivotX=0,pivotY=0):
+        '''Screen is the pygame screen to be used.
+
+            Image is the currently rendered image object for the sprite to use.
+
+            collider is bool, if sprite is already a collider then it does not need its own collisions.
+
+            spawnX and spawnY are the initial position of the sprite.
         '''
-        if image:
-            self.background=pygame.image.load(str('imagedata/')+str(image)).convert_alpha()
-            self.background=pygame.transform.scale(self.background,(round(self.width*scale),round(self.height*scale)))
-            self.background.set_colorkey(colourkey)
-    def set_foreground(self,image=None, colourkey=None, scale=1.0):
-        if image:
-            self.foreground=pygame.image.load(str('imagedata/')+str(image)).convert_alpha()
-            self.foreground=pygame.transform.scale(self.foreground,(round(self.width*scale),round(self.height*scale)))
-            self.foreground.set_colorkey(colourkey)
+        self.image,self.imagewidth,self.imageheight,self.sX,self.sY,self.pX,self.pY=image.image,image.imagewidth,image.imageheight,image.scaleX,image.scaleY,(pivotX*screen.get_width())-(image.imagewidth/2),(pivotY*screen.get_height())-(image.imageheight/2)
+        screen.blit(self.image,(self.pX,self.pY))
+        if self.image!=None and isCollider==False:
+            self.collider=BoundingBox(screen,self.imagewidth,self.imageheight,self.pX,self.pY,True)
+
+class BoundingBox():
+    '''Class that handles all collisions, used by the Sprite class.
+    '''
+    def __init__(self,screen,width,height,pX=0,pY=0,debugBBox=False):
+        self.width,self.height,self.pX,self.pY,self.debugBBox,self.screen=width,height,pX,pY,debugBBox,screen
+        self.topLeft=(0+pX,0+pY)
+        self.topRight=(self.width+pX,0+pY)
+        self.botLeft=(0+pX,self.height+pY)
+        self.botRight=(self.width+pX,self.height+pY)
+        if self.debugBBox==True:
+            self.ShowCollisions()
+    def ShowCollisions(self):
+        self.colliderRect=pygame.Rect(self.topLeft[0],self.topLeft[1],self.botRight[0],self.botRight[1])
+        self.s=pygame.Surface((self.topRight[0]-self.topLeft[0],self.botLeft[1]-self.topRight[1]))
+        self.s.set_alpha(100)
+        self.s.fill((255,0,0))
+        self.screen.blit(self.s,(self.topLeft[0],self.topLeft[1]))
+
 resX,resY=1280,720
 game_window=PygameWindow(resX,resY)    
 #####################################################
