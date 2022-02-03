@@ -236,6 +236,7 @@ class Animation():
         Returns a tuple coordinate to be applied to the current position of the object being animated.
         Should be called every frame.
         '''
+        #strange deltatime bug causing increasing position offset of an animation, the lower the framerate.
         #print('instructions=',self.instructions,'current instruction=',self.current_instruction,'instruction length',self.instruction_duration, 'total instructions',self.total_instructions)
         if int(self.instruction_progress)<int(self.instruction_duration):#if current instruction is not yet finished
             self.instruction_progress+=deltatime #increases the progress on the instruction by the change in time since last call.
