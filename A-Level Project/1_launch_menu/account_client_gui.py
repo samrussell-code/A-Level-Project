@@ -124,6 +124,7 @@ class LaunchWindow(Tk):
 class PygameWindow():
     def __init__(self,width,height):
         self.rect=pygame.Rect(0,0,width,height)
+        self.FRAMERATE=144
         self.screenwidth,self.screenheight=width,height
         pygame.init()
         self.screen=pygame.display.set_mode(self.rect.size)
@@ -134,10 +135,10 @@ class PygameWindow():
         self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5)
         self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.1)
         self.foreground.animations.update({'Bounce':Animation([
-        '30 0 -0.1', #syntax FRAMES X_update Y_update
-        '200 0 0',
-        '30 0 0.1',
-        '200 0 0'])})# creates a simple motion animation called bounce, for the foreground sprite.
+        '300 0 -0.1', #syntax FRAMES X_update Y_update
+        '500 0 0',
+        '300 0 0.1',
+        '500 0 0'])})# creates a simple motion animation called bounce, for the foreground sprite.
 
 
         self.RENDER_LIST=[self.background,self.foreground] #every sprite to be rendered should go in this list, sprite on top is end of list.
@@ -145,6 +146,7 @@ class PygameWindow():
         self.update()
     def update(self):
         while True:
+            pygame.time.wait(round(1000/self.FRAMERATE))
             self.calculate_delta_time()
             self.blit_objects()
 
@@ -155,13 +157,14 @@ class PygameWindow():
         self.newtime=(pygame.time.get_ticks())
         self.deltatime=self.newtime-self.last_time
         self.last_time=self.newtime
+        print(self.deltatime)
 
     def blit_objects(self):
         for sprite in self.RENDER_LIST:
             for animation in sprite.animations.values(): #updates every animation, for every sprite
                 update_x,update_y=animation.UpdateAnimation(self.deltatime)
-                sprite.pX+=update_x
-                sprite.pY+=update_y
+                sprite.pX+=(update_x*self.deltatime)
+                sprite.pY+=(update_y*self.deltatime)
             self.screen.blit(sprite.image,(sprite.pX,sprite.pY)) #renders every sprite
             if sprite.isCollider==False:
                 if sprite.collider.debugBBox==True:  #renders the colliders for each sprite that has debug set to true
@@ -231,15 +234,11 @@ class Animation():
     def UpdateAnimation(self,deltatime):
         '''
         Returns a tuple coordinate to be applied to the current position of the object being animated.
-        Should be called every frame, with the delta time as a parameter, to calculate the correct movement.
+        Should be called every frame.
         '''
         #print('instructions=',self.instructions,'current instruction=',self.current_instruction,'instruction length',self.instruction_duration, 'total instructions',self.total_instructions)
-        if self.tick+deltatime < self.instruction_duration:
-            self.tick+=deltatime
-        else:
-            self.tick=0
         if int(self.instruction_progress)<int(self.instruction_duration):#if current instruction is not yet finished
-            self.instruction_progress+=1
+            self.instruction_progress+=deltatime #increases the progress on the instruction by the change in time since last call.
             to_send_x=float((self.instructions[self.current_instruction]).split(' ')[1]) #gets the y coord
             to_send_y=float((self.instructions[self.current_instruction]).split(' ')[2]) #gets the x coord
             return to_send_x,to_send_y
@@ -253,12 +252,6 @@ class Animation():
             self.instruction_progress=0 #resets the progress for the new instruction 
             return 0,0
 
-
-    def GetPositionUpdate(self):
-        self.instructions[self.current_instruction]
-
-        self.last_x,self.last_y=self.new_x,self.new_y
-        return self.new_x,self.new_y
 resX,resY=1280,720
 game_window=PygameWindow(resX,resY)
 #####################################################
