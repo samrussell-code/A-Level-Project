@@ -137,18 +137,29 @@ class PygameWindow():
         '30 0 -0.1', #syntax FRAMES X_update Y_update
         '200 0 0',
         '30 0 0.1',
-        '200 0 0'])})# creates a simple motion animation called bounce.
+        '200 0 0'])})# creates a simple motion animation called bounce, for the foreground sprite.
 
-        self.RENDER_LIST=[self.background,self.foreground]
-        pygame.display.flip()
+
+        self.RENDER_LIST=[self.background,self.foreground] #every sprite to be rendered should go in this list, sprite on top is end of list.
+        self.last_time=0
         self.update()
     def update(self):
         while True:
+            self.calculate_delta_time()
             self.blit_objects()
+
+    def calculate_delta_time(self):
+        ''' Gets the time since window intialised, then subtracts that from the previous call on time, to get the change in time, deltatime, then saves the last call.
+            Delta time is in ms.
+        '''
+        self.newtime=(pygame.time.get_ticks())
+        self.deltatime=self.newtime-self.last_time
+        self.last_time=self.newtime
+
     def blit_objects(self):
         for sprite in self.RENDER_LIST:
             for animation in sprite.animations.values(): #updates every animation, for every sprite
-                update_x,update_y=animation.UpdateAnimation()
+                update_x,update_y=animation.UpdateAnimation(self.deltatime)
                 sprite.pX+=update_x
                 sprite.pY+=update_y
             self.screen.blit(sprite.image,(sprite.pX,sprite.pY)) #renders every sprite
@@ -217,12 +228,16 @@ class Animation():
         self.total_instructions=len(self.instructions)-1
         self.instruction_duration=int((self.instructions[self.current_instruction]).split(' ')[0])
 
-    def UpdateAnimation(self):
+    def UpdateAnimation(self,deltatime):
         '''
         Returns a tuple coordinate to be applied to the current position of the object being animated.
-        Should be called every frame.
+        Should be called every frame, with the delta time as a parameter, to calculate the correct movement.
         '''
         #print('instructions=',self.instructions,'current instruction=',self.current_instruction,'instruction length',self.instruction_duration, 'total instructions',self.total_instructions)
+        if self.tick+deltatime < self.instruction_duration:
+            self.tick+=deltatime
+        else:
+            self.tick=0
         if int(self.instruction_progress)<int(self.instruction_duration):#if current instruction is not yet finished
             self.instruction_progress+=1
             to_send_x=float((self.instructions[self.current_instruction]).split(' ')[1]) #gets the y coord
