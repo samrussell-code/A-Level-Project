@@ -133,8 +133,29 @@ class PygameWindow():
         # the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
         self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5)
         self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.1)
+        self.foreground.animations.update({'Bounce':Animation([
+        '30 0 -0.1', #syntax FRAMES X_update Y_update
+        '200 0 0',
+        '30 0 0.1',
+        '200 0 0'])})# creates a simple motion animation called bounce.
+
+        self.RENDER_LIST=[self.background,self.foreground]
         pygame.display.flip()
-        pygame.time.delay(10000)
+        self.update()
+    def update(self):
+        while True:
+            self.blit_objects()
+    def blit_objects(self):
+        for sprite in self.RENDER_LIST:
+            for animation in sprite.animations.values(): #updates every animation, for every sprite
+                update_x,update_y=animation.UpdateAnimation()
+                sprite.pX+=update_x
+                sprite.pY+=update_y
+            self.screen.blit(sprite.image,(sprite.pX,sprite.pY)) #renders every sprite
+            if sprite.isCollider==False:
+                if sprite.collider.debugBBox==True:  #renders the colliders for each sprite that has debug set to true
+                    self.screen.blit(sprite.collider.surface,(sprite.pX,sprite.pY))
+        pygame.display.flip()
 
 class Image():
     '''imagename is the filename
@@ -164,6 +185,8 @@ class Sprite():
         '''
         self.image,self.imagewidth,self.imageheight,self.sX,self.sY,self.pX,self.pY=image.image,image.imagewidth,image.imageheight,image.scaleX,image.scaleY,(pivotX*screen.get_width())-(image.imagewidth/2),(pivotY*screen.get_height())-(image.imageheight/2)
         screen.blit(self.image,(self.pX,self.pY))
+        self.animations={}
+        self.isCollider=isCollider
         if self.image!=None and isCollider==False:
             self.collider=BoundingBox(screen,self.imagewidth,self.imageheight,self.pX,self.pY,True)
 
@@ -180,13 +203,49 @@ class BoundingBox():
             self.ShowCollisions()
     def ShowCollisions(self):
         self.colliderRect=pygame.Rect(self.topLeft[0],self.topLeft[1],self.botRight[0],self.botRight[1])
-        self.s=pygame.Surface((self.topRight[0]-self.topLeft[0],self.botLeft[1]-self.topRight[1]))
-        self.s.set_alpha(100)
-        self.s.fill((255,0,0))
-        self.screen.blit(self.s,(self.topLeft[0],self.topLeft[1]))
+        self.surface=pygame.Surface((self.topRight[0]-self.topLeft[0],self.botLeft[1]-self.topRight[1]))
+        self.surface.set_alpha(100)
+        self.surface.fill((255,0,0))
+        self.screen.blit(self.surface,(self.topLeft[0],self.topLeft[1]))
 
+class Animation():
+    def __init__(self,instructions):
+        self.tick=0
+        self.current_instruction=0
+        self.instruction_progress=0
+        self.instructions=instructions
+        self.total_instructions=len(self.instructions)-1
+        self.instruction_duration=int((self.instructions[self.current_instruction]).split(' ')[0])
+
+    def UpdateAnimation(self):
+        '''
+        Returns a tuple coordinate to be applied to the current position of the object being animated.
+        Should be called every frame.
+        '''
+        #print('instructions=',self.instructions,'current instruction=',self.current_instruction,'instruction length',self.instruction_duration, 'total instructions',self.total_instructions)
+        if int(self.instruction_progress)<int(self.instruction_duration):#if current instruction is not yet finished
+            self.instruction_progress+=1
+            to_send_x=float((self.instructions[self.current_instruction]).split(' ')[1]) #gets the y coord
+            to_send_y=float((self.instructions[self.current_instruction]).split(' ')[2]) #gets the x coord
+            return to_send_x,to_send_y
+        else:
+            if self.current_instruction<self.total_instructions: #if all instructions are not finished
+                self.current_instruction+=1               
+            else:
+                #print('reset animation / animation ended.')
+                self.current_instruction=0
+            self.instruction_duration=(self.instructions[self.current_instruction]).split(' ')[0] #gets the duration of the newly loaded instruction
+            self.instruction_progress=0 #resets the progress for the new instruction 
+            return 0,0
+
+
+    def GetPositionUpdate(self):
+        self.instructions[self.current_instruction]
+
+        self.last_x,self.last_y=self.new_x,self.new_y
+        return self.new_x,self.new_y
 resX,resY=1280,720
-game_window=PygameWindow(resX,resY)    
+game_window=PygameWindow(resX,resY)
 #####################################################
 #launch_window=LaunchWindow()
 #launch_window.mainloop()
