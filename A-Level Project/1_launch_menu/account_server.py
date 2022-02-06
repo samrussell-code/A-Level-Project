@@ -9,6 +9,7 @@
 #example data would be '1' and then, seperately, ['John Smith','password123']. First, tuple[0] is taken and checked against every database username. Return '0' if username is not in database.
 #Return '1' if password does not match correct password.
 #If the username and password are correct, details must be fetched back to fill out variables for the Account client class.
+import opcode
 import sqlite3, socket, threading, datetime
 from err import ERR_CATCH
 
@@ -129,23 +130,32 @@ class ClientHandler:
         if recv_opcode==0:
             success=REGISTER_ACCOUNT(username,password,connection,socketObject.getpeername())
             if success==True:
-                self.SendData(0,['Registered profile and logged in...'])
+                self.SendData(0,['Registered profile and logged in...',1])
             else:
-                self.SendData(0,['Register failed.'])
+                self.SendData(0,['Register failed.',0])
 
         elif recv_opcode==1:
             print('recieved opcode 1')
             success=LOGIN_ACCOUNT(username,password,connection)
             if success==True:
-                self.SendData(0,['Logged into account on database...'])
+                self.SendData(0,['Logged into account on database...',1])
             else:
-                self.SendData(0,['Login failed.'])
+                self.SendData(0,['Login failed.',0])
+        elif recv_opcode==2:
+            print('recieved opcode 2')
+            lobby_name=operation[4]
+            self.CREATE_LOBBY(operation)
         else:
             ERR_CATCH(1)
+
+    def CREATE_LOBBY(self,operation):
+        player1,lobby_password,connection,lobby_name=operation[1],operation[2],operation[3],operation[4]
+        print(player1,lobby_name,lobby_password)
+
     def SendData(self,opcode,data_list):
         data=str(opcode)
         print('sending data', data_list,opcode)
-        for item in data_list: data+='||'+item #formatting data to be sent
+        for item in data_list: data+='||'+str(item) #formatting data to be sent
         self.socketObject.send(data.encode())
         self.RecieveData()
 

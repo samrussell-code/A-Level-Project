@@ -1,4 +1,6 @@
 from ast import Sub
+from cgitb import text
+from msilib.schema import Font
 from turtle import screensize
 from err import ERR_CATCH
 from tkinter import *
@@ -48,9 +50,13 @@ class LaunchWindow(Tk):
             self.infoLabel.config(text=operation[1])
             self.usernameEntry.delete(0,'end')
             self.passwordEntry.delete(0,'end')
+            if operation[2]=='1':#operation[2] is a true/false success/fail
+                self.destroy()
+                resX,resY=1280,720
+                game_window=PygameWindow(resX,resY,self.username,socket.gethostname())
 
     def ContactServer(self,opcode):
-        username=self.usernameEntry.get()
+        self.username=self.usernameEntry.get()
         password=self.passwordEntry.get()
         try:
             password_token=self.EncryptPassword(password)
@@ -59,7 +65,7 @@ class LaunchWindow(Tk):
             ERR_CATCH(5)
         #with open('client//username.txt','w') as file: file.write(username);file.close()
         #with open('client//authtoken.txt','w') as file: file.write(password_token);file.close()
-        self.SEND_DATA(opcode,[username,password_token])
+        self.SEND_DATA(opcode,[self.username,password_token])
     def SEND_DATA(self,opcode,data_list):
         data=str(opcode)
         for item in data_list: data+='||'+item #formatting data to be sent
@@ -72,7 +78,7 @@ class LaunchWindow(Tk):
         socketObject=socket.socket()
         port=25520
         try:
-            socketObject.connect(('SHA-E8-DT-018', port))
+            socketObject.connect(('tank.servegame.com', port))
             return socketObject
         except:
             ERR_CATCH(8)
@@ -124,19 +130,18 @@ class LaunchWindow(Tk):
 ##    pygame.display.update()
 
 class PygameWindow():
-    def __init__(self,width,height):
+    def __init__(self,width,height,username,ip):
+        self.username,self.ip=username,ip
         self.rect=pygame.Rect(0,0,width,height)
         self.FRAMERATE=144
         self.screenwidth,self.screenheight=width,height
         pygame.init()
         self.screen=pygame.display.set_mode(self.rect.size)
-
-        
-
+        self.UIManager=pygame_gui.UIManager((self.screenwidth,self.screenheight))
         pygame.display.set_caption('Tank Game')
-        pygame.mouse.set_visible(1)
-        self.imageDict={'menu_background':Image('menu_background.png',None,1,self.screenwidth,self.screenheight),'menu_title':Image('menu_title.png','#ffffff',0.3,self.screenwidth,self.screenheight)} # all loaded images are stored in dictionary
-        # the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
+        pygame.mouse.set_visible(1) #the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
+        self.imageDict={'menu_background':Image('menu_background.png',None,1,self.screenwidth,self.screenheight),'menu_title':Image('menu_title.png','#ffffff',0.3,self.screenwidth,self.screenheight)} # all loaded images are stored in dictionary 
+        self.BASE_RECT=pygame.Rect((0,0),(self.screenwidth,self.screenheight))
         self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5) #sprite of image menu_background, with no collisions, in the centre of screen.
         self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.125)
         self.foreground.animations.update({'Bounce':Animation([
@@ -144,15 +149,31 @@ class PygameWindow():
         '500 0 0',
         '300 0 0.1',
         '500 0 0'])})# creates a simple motion animation called bounce, for the foreground sprite.
-        self.BASE_RECT=pygame.Rect((0,0),(self.screenwidth,self.screenheight))
-        self.RENDER_LIST=[self.background,self.foreground] #every sprite to be rendered should go in this list, sprite on top is end of list.
+        
+        create_button_layout=self.button_layout(0.1,0.4,0.2,0.1,False)
+        self.create_button=pygame_gui.elements.UIButton(relative_rect=create_button_layout,text='Create Lobby',manager=self.UIManager) #these rects have set sizes
+
+        join_button_layout=self.button_layout(0.1,0.6,0.2,0.1,False)
+        self.join_button=pygame_gui.elements.UIButton(relative_rect=join_button_layout,text='Join Lobby',manager=self.UIManager)
+
+        self.SPRITE_RENDER_LIST=[self.background,self.foreground] #every sprite to be rendered should go in this list, sprite on top is end of list.
         self.last_time=0
         self.update()
+
     def update(self):
-        while True:
+        self.is_running=True
+        while self.is_running:
             pygame.time.wait(round(1000/self.FRAMERATE))
+            self.manage_events()
             self.calculate_delta_time()
+            self.UIManager.update(self.deltatime)
             self.blit_objects()
+
+    def button_layout(self,offsetx,offsety,sizex=-1,sizey=-1,auto=True):
+        if auto==True: #size of button should be automatic
+            return pygame.Rect((round(offsetx*self.screenwidth),round(offsety*self.screenheight)),(-1,-1))
+        else:
+            return pygame.Rect(round(offsetx*self.screenwidth),round(offsety*self.screenheight),round(sizex*self.screenwidth),round(sizey*self.screenheight))
 
     def calculate_delta_time(self):
         ''' Gets the time since window intialised, then subtracts that from the previous call on time, to get the change in time, deltatime, then saves the last call.
@@ -161,11 +182,26 @@ class PygameWindow():
         self.newtime=(pygame.time.get_ticks())
         self.deltatime=self.newtime-self.last_time
         self.last_time=self.newtime
-        #print(self.deltatime)
+
+    def manage_events(self):
+            for event in pygame.event.get():
+                if event.type==pygame.QUIT:
+                    self.is_running=False
+                if event.type==pygame_gui.UI_BUTTON_PRESSED:
+                    if event.ui_element==self.create_button:
+                        print('create')
+                        self.GAME_START()
+                    elif event.ui_element==self.join_button:
+                        print('join')
+                self.UIManager.process_events(event)
+
+    def GAME_START(self):
+        self.SPRITE_RENDER_LIST=[]
+        self.GameManager=GameManager(self.ip,self.username)
 
     def blit_objects(self):
         pygame.draw.rect(self.screen,(255,255,255),pygame.Rect(0,0,self.screenwidth,self.screenheight))
-        for sprite in self.RENDER_LIST:
+        for sprite in self.SPRITE_RENDER_LIST:
             for animation in sprite.animations.values(): #updates every animation, for every sprite
                 update_x,update_y=animation.UpdateAnimation(self.deltatime)
                 sprite.pX+=(update_x*self.deltatime)
@@ -174,6 +210,7 @@ class PygameWindow():
             if sprite.isCollider==False:
                 if sprite.collider.debugBBox==True:  #renders the colliders for each sprite that has debug set to true
                     self.screen.blit(sprite.collider.surface,(sprite.pX,sprite.pY))
+        self.UIManager.draw_ui(self.screen)
         pygame.display.flip()
 
 class Image():
@@ -261,8 +298,30 @@ class Animation():
             self.instruction_progress=0 #resets the progress for the new instruction 
             return 0,0
 
-resX,resY=1280,720
-game_window=PygameWindow(resX,resY)
-#####################################################
-#launch_window=LaunchWindow()
-#launch_window.mainloop()
+class GameManager():
+    def __init__(self,ip,username):
+        '''Creates a connection to the server, and asks the server to create a lobby
+        '''
+        self.socketObject=socket.socket()
+        self.port=25520
+        print(0)
+        self.connection=self.CreateConnection()
+        lobby_name='test lobby' #user should be able to change this later
+        create_lobby_data=self.FORMAT_DATA(2,[username,'password',self.connection,lobby_name])
+        print(1)
+        self.connection.send(create_lobby_data.encode()) #OPCODE 2 IS CREATE LOBBY
+        print(2)
+    def CreateConnection(self):
+        try:
+            self.socketObject.connect(('tank.servegame.com', self.port))
+            return self.socketObject
+        except:
+            ERR_CATCH(8)
+
+    def FORMAT_DATA(self,opcode,data_list):
+        data=str(opcode)
+        for item in data_list: data+='||'+str(item)
+        return data
+
+launch_window=LaunchWindow()
+launch_window.mainloop()
