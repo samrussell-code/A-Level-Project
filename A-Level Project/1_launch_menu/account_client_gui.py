@@ -1,3 +1,5 @@
+from ast import Sub
+from turtle import screensize
 from err import ERR_CATCH
 from tkinter import *
 import winsound
@@ -128,19 +130,21 @@ class PygameWindow():
         self.screenwidth,self.screenheight=width,height
         pygame.init()
         self.screen=pygame.display.set_mode(self.rect.size)
+
+        
+
         pygame.display.set_caption('Tank Game')
         pygame.mouse.set_visible(1)
-        self.imageDict={'menu_background':Image('menu_background.png',None,10,10),'menu_title':Image('menu_title.png','#ffffff',2,2)} # all loaded images are stored in dictionary
+        self.imageDict={'menu_background':Image('menu_background.png',None,1,self.screenwidth,self.screenheight),'menu_title':Image('menu_title.png','#ffffff',0.3,self.screenwidth,self.screenheight)} # all loaded images are stored in dictionary
         # the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
-        self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5)
-        self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.1)
+        self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5) #sprite of image menu_background, with no collisions, in the centre of screen.
+        self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.125)
         self.foreground.animations.update({'Bounce':Animation([
         '300 0 -0.1', #syntax FRAMES X_update Y_update
         '500 0 0',
         '300 0 0.1',
         '500 0 0'])})# creates a simple motion animation called bounce, for the foreground sprite.
-
-
+        self.BASE_RECT=pygame.Rect((0,0),(self.screenwidth,self.screenheight))
         self.RENDER_LIST=[self.background,self.foreground] #every sprite to be rendered should go in this list, sprite on top is end of list.
         self.last_time=0
         self.update()
@@ -152,14 +156,15 @@ class PygameWindow():
 
     def calculate_delta_time(self):
         ''' Gets the time since window intialised, then subtracts that from the previous call on time, to get the change in time, deltatime, then saves the last call.
-            Delta time is in ms.
+            Delta time is in ms. Use this value for physics calculations so motion is not tied to framerate but instead time.
         '''
         self.newtime=(pygame.time.get_ticks())
         self.deltatime=self.newtime-self.last_time
         self.last_time=self.newtime
-        print(self.deltatime)
+        #print(self.deltatime)
 
     def blit_objects(self):
+        pygame.draw.rect(self.screen,(255,255,255),pygame.Rect(0,0,self.screenwidth,self.screenheight))
         for sprite in self.RENDER_LIST:
             for animation in sprite.animations.values(): #updates every animation, for every sprite
                 update_x,update_y=animation.UpdateAnimation(self.deltatime)
@@ -178,12 +183,15 @@ class Image():
 
        scaleX/scaleY is the scale of the image to be used by default by a sprite
     '''
-    def __init__(self,imagename=None,colourkey=None,scaleX=1.0,scaleY=1.0):
-        self.imagename,self.colourkey,self.scaleX,self.scaleY=imagename,colourkey,scaleX,scaleY
+    #scale should be a percentage of the screen size to scale, so 100 (self.imagewidth / self.screenwidth)
+    #
+    def __init__(self,imagename=None,colourkey=None,scaleX=1.0,screenwidth=1280,screenheight=720):
+        self.imagename,self.colourkey,self.scaleX=imagename,colourkey,scaleX
         if imagename!=None:
             self.image=pygame.image.load(str('imagedata/')+str(self.imagename)).convert_alpha()
             self.imagewidth,self.imageheight=self.image.get_size() #gets the size before the scale
-            self.image=pygame.transform.scale(self.image,(round(self.imagewidth*scaleX),round(self.imageheight*scaleY)))
+            newwidth,newheight=round(self.imagewidth*(scaleX/100)*screenwidth),round(self.imageheight*(scaleX/100)*screenwidth)
+            self.image=pygame.transform.scale(self.image,(newwidth,newheight))
             self.imagewidth,self.imageheight=self.image.get_size() #gets the size after the scale
             self.image.set_colorkey(colourkey)
 
@@ -197,7 +205,7 @@ class Sprite():
 
             spawnX and spawnY are the initial position of the sprite.
         '''
-        self.image,self.imagewidth,self.imageheight,self.sX,self.sY,self.pX,self.pY=image.image,image.imagewidth,image.imageheight,image.scaleX,image.scaleY,(pivotX*screen.get_width())-(image.imagewidth/2),(pivotY*screen.get_height())-(image.imageheight/2)
+        self.image,self.imagewidth,self.imageheight,self.sX,self.pX,self.pY=image.image,image.imagewidth,image.imageheight,image.scaleX,(pivotX*screen.get_width())-(image.imagewidth/2),(pivotY*screen.get_height())-(image.imageheight/2)
         screen.blit(self.image,(self.pX,self.pY))
         self.animations={}
         self.isCollider=isCollider
