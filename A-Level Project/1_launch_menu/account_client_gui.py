@@ -193,12 +193,19 @@ class PygameWindow():
                         self.GAME_START()
                     elif event.ui_element==self.join_button:
                         print('join')
+                        self.GAME_FIND()
                 self.UIManager.process_events(event)
 
     def GAME_START(self):
-        self.SPRITE_RENDER_LIST=[]
-        self.GameManager=GameManager(self.ip,self.username)
-
+        ''' Clears the list of items to render on the screen, then draws lobby title text, either waiting for player 2, or player 2 found
+        '''
+        self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]#empties the screen
+        self.GameManager=GameManager(self.ip,self.username,2)#2 for create, 3 for join
+        lobby_title_text_layout=self.button_layout(0.3,0.3,0.4,0.05,False)
+        lobby_title_text=pygame_gui.elements.UITextBox(html_text=f'''<b><u>{self.GameManager.lobby_name}: Waiting for player 2... </u></b>''',relative_rect=lobby_title_text_layout,manager=self.UIManager)
+    def GAME_FIND(self):
+        self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]
+        self.GameManager=GameManager(self.ip,self.username,3)
     def blit_objects(self):
         pygame.draw.rect(self.screen,(255,255,255),pygame.Rect(0,0,self.screenwidth,self.screenheight))
         for sprite in self.SPRITE_RENDER_LIST:
@@ -299,18 +306,16 @@ class Animation():
             return 0,0
 
 class GameManager():
-    def __init__(self,ip,username):
+    def __init__(self,ip,username,opcode):
         '''Creates a connection to the server, and asks the server to create a lobby
         '''
         self.socketObject=socket.socket()
         self.port=25520
-        print(0)
         self.connection=self.CreateConnection()
-        lobby_name='test lobby' #user should be able to change this later
-        create_lobby_data=self.FORMAT_DATA(2,[username,'password',self.connection,lobby_name])
-        print(1)
+        self.lobby_name='test lobby' #user should be able to change this later
+        create_lobby_data=self.FORMAT_DATA(opcode,[username,'password',self.lobby_name])
+        print(create_lobby_data)
         self.connection.send(create_lobby_data.encode()) #OPCODE 2 IS CREATE LOBBY
-        print(2)
     def CreateConnection(self):
         try:
             self.socketObject.connect(('tank.servegame.com', self.port))
@@ -320,7 +325,7 @@ class GameManager():
 
     def FORMAT_DATA(self,opcode,data_list):
         data=str(opcode)
-        for item in data_list: data+='||'+str(item)
+        for item in data_list: data+='||'+item
         return data
 
 launch_window=LaunchWindow()
