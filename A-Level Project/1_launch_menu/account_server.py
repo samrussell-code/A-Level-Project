@@ -79,7 +79,16 @@ def LogConnection(cursor,connection,username,ip,reason='No Reason Given'):
       Then stores the IPID and UUID of a connection being made at a given time,found with datetime.'''
 
     cursor.execute(f'''SELECT UUID FROM PROFILE_INFO WHERE username="{username}"''');UUID=cursor.fetchone()[0]
-    cursor.execute(f'''SELECT IPID FROM CONNECTION_IP WHERE IP="{ip}"''');IPID=(cursor.fetchone())[0]
+    cursor.execute(f'''SELECT IPID FROM CONNECTION_IP WHERE IP="{ip}"''')
+    result=cursor.fetchone()
+    print(result)
+    if result==None: #adds new IP to table and attempts to get an id again 
+        dbAddToTable(connection,'INSERT INTO CONNECTION_IP (IP) VALUES (?);',([ip]),'CONNECTION_IP')
+        cursor.execute(f'''SELECT IPID FROM CONNECTION_IP WHERE IP="{ip}"''')
+        IPID=cursor.fetchone()[0]
+    else:
+        IPID=result[0]
+    print(IPID)
     dt=datetime.datetime.now();date=dt.strftime("%d/%m/%y");time=dt.strftime("%X")
     dbAddToTable(connection,'INSERT INTO PROFILE_CONN_HIST (UUID, IPID, AccessDate, AccessTime,AccessReason) VALUES (?,?,?,?,?);',(UUID,IPID,date,time,reason),'PROFILE_CONN_HIST')
     print(f'''Logged Connection at "{time}".''')
@@ -173,22 +182,34 @@ class ClientHandler:
             LogConnection(cursor,connection,player1,ip,f'''Created Lobby: {lobby_name}''')
             cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE PlayerID1={playerID1}''')
             result=cursor.fetchone()
-            game_log_name=result[0]
+            lobby_ID=result[0]
         else:
-            game_log_name=result[0]
+            lobby_ID=result[0]
             dbAddToTable(connection,'UPDATE LOBBY SET LobbyName=?, LobbyPassword=?, PlayerID2=?, IsOnline=? WHERE PlayerID1=?;',(lobby_name,lobby_password,None,'True',playerID1),'LOBBY')
             LogConnection(cursor,connection,player1,ip,f'''Updated Lobby: {lobby_name}''')
-        game_log=open(game_log_name,'w')
+        game_log=open(str(str(lobby_ID)+'.txt'),'w')
         game_log.write(str('Lobby restarted at: '+str(round(time.time()))+'\n\n'))
+        game_log.write('User #'+str(playerID1)+': "'+str(player1)+'"is ready.\n\n')
         game_log.close()
 
-    def JOIN_LOBBY(self,operation,connection,sockname):
+    def JOIN_LOBBY(self,operation,connection,sockname): #ISSUE - MULTIPLE LOBBIES WITH THE SAME USERNAME AND PASSWORD MEAN USERS ONLY JOIN THE FIRST FETCHED LOBBY
         player2,lobby_password,lobby_name=operation[1],operation[2],operation[3]
         cursor=connection.cursor()
         ip=str(sockname[0])
-        cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE LobbyName={lobby_name} AND LobbyPassword={lobby_password} AND IsOnline="True"''')
+        cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE LobbyName="{lobby_name}" AND LobbyPassword="{lobby_password}" AND IsOnline = "True"''') #  
         result=cursor.fetchone()
-        print('found lobby with ID ',result[0])
+        if result==None:
+            print('no lobby found with the requested username password that is online')
+            return #ends the subroutine
+        lobby_ID=result[0]
+        cursor.execute(f'''SELECT UUID FROM PROFILE_INFO WHERE username="{player2}"''')
+        playerID2=cursor.fetchone()[0]
+        print('found lobby with ID ',lobby_ID)
+        dbAddToTable(connection,'UPDATE LOBBY SET PlayerID2=? WHERE LobbyID=?;',(playerID2,lobby_ID),'LOBBY')
+        game_log=open(str(str(lobby_ID)+'.txt'),'a')
+        game_log.write('User #'+str(playerID2)+': "'+str(player2)+'"is ready.\n\n')
+        game_log.close()
+
 
     def SendData(self,opcode,data_list):
         data=str(opcode)

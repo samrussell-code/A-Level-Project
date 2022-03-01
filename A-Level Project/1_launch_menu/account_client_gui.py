@@ -156,6 +156,12 @@ class PygameWindow():
         join_button_layout=self.button_layout(0.1,0.6,0.2,0.1,False)
         self.join_button=pygame_gui.elements.UIButton(relative_rect=join_button_layout,text='Join Lobby',manager=self.UIManager)
 
+        name_entry_layout=self.button_layout(0.6,0.4,0.2,0.1,False)
+        self.name_entry=pygame_gui.elements.UITextEntryLine(relative_rect=name_entry_layout,manager=self.UIManager)
+
+        password_entry_layout=self.button_layout(0.6,0.6,0.2,0.1,False)
+        self.password_entry=pygame_gui.elements.UITextEntryLine(relative_rect=password_entry_layout,manager=self.UIManager)
+
         self.SPRITE_RENDER_LIST=[self.background,self.foreground] #every sprite to be rendered should go in this list, sprite on top is end of list.
         self.last_time=0
         self.update()
@@ -188,6 +194,8 @@ class PygameWindow():
                 if event.type==pygame.QUIT:
                     self.is_running=False
                 if event.type==pygame_gui.UI_BUTTON_PRESSED:
+                    self.name=self.name_entry.get_text()
+                    self.password=self.password_entry.get_text() #grabs the lobby name and password entered
                     if event.ui_element==self.create_button:
                         print('create')
                         self.GAME_START()
@@ -200,12 +208,12 @@ class PygameWindow():
         ''' Clears the list of items to render on the screen, then draws lobby title text, either waiting for player 2, or player 2 found
         '''
         self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]#empties the screen
-        self.GameManager=GameManager(self.ip,self.username,2)#2 for create, 3 for join
+        self.GameManager=GameManager(self.ip,self.username,2,self.name,self.password)#2 for create, 3 for join
         lobby_title_text_layout=self.button_layout(0.3,0.3,0.4,0.05,False)
         lobby_title_text=pygame_gui.elements.UITextBox(html_text=f'''<b><u>{self.GameManager.lobby_name}: Waiting for player 2... </u></b>''',relative_rect=lobby_title_text_layout,manager=self.UIManager)
     def GAME_FIND(self):
         self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]
-        self.GameManager=GameManager(self.ip,self.username,3)
+        self.GameManager=GameManager(self.ip,self.username,3,self.name,self.password)
     def blit_objects(self):
         pygame.draw.rect(self.screen,(255,255,255),pygame.Rect(0,0,self.screenwidth,self.screenheight))
         for sprite in self.SPRITE_RENDER_LIST:
@@ -306,16 +314,17 @@ class Animation():
             return 0,0
 
 class GameManager():
-    def __init__(self,ip,username,opcode):
-        '''Creates a connection to the server, and asks the server to create a lobby
+    def __init__(self,ip,username,opcode,name,password):
+        '''Creates a connection to the server, and asks the server to connect to a lobby
         '''
         self.socketObject=socket.socket()
         self.port=25520
         self.connection=self.CreateConnection()
-        self.lobby_name='test lobby' #user should be able to change this later
-        create_lobby_data=self.FORMAT_DATA(opcode,[username,'password',self.lobby_name])
+        self.lobby_name=name
+        self.lobby_password=password
+        create_lobby_data=self.FORMAT_DATA(opcode,[username,self.lobby_password,self.lobby_name])
         print(create_lobby_data)
-        self.connection.send(create_lobby_data.encode()) #OPCODE 2 IS CREATE LOBBY
+        self.connection.send(create_lobby_data.encode()) #OPCODE 2 IS CREATE LOBBY, OPCODE 3 IS JOIN LOBBY
     def CreateConnection(self):
         try:
             self.socketObject.connect(('tank.servegame.com', self.port))
