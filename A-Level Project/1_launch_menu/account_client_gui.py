@@ -30,9 +30,6 @@ class LaunchWindow(Tk):
         self.infoLabel=Label(text='',bg='#464646',fg='#eeeeee',font=self.smallFont,anchor=CENTER)
         self.loginButton=Button(text='Login',bg='#eeeeee',fg='#464646',font=self.mediumFont,command=partial(self.UpdateClient,1))
         self.registerButton=Button(text='Register',bg='#eeeeee',fg='#464646',font=self.mediumFont,command=partial(self.UpdateClient,0))
-        # relx = relx - 1/2 of relwidth
-        # rely = rely - 1/2 of relheight
-        #SET UP RELATIVE POSITIONS OF OBJECTS IN LOGIN SCREEN
         self.gameTitleLabel.place(relx=24/64,rely=3/40,relwidth=1/4,relheight=1/15)
         self.usernameLabel.place(relx=7/16,rely=7/40,relwidth=1/8,relheight=1/30)
         self.usernameEntry.place(relx=7/16,rely=9/40,relwidth=1/8,relheight=1/20)
@@ -105,29 +102,6 @@ class LaunchWindow(Tk):
         fontName,fontSize=font
         fontSize=round((fontSize/1280)*width)
         widget.config(font=(fontName,fontSize))
-
-
-
-#####################################################
-##pygame.init()
-##
-##pygame.display.set_caption('Quick Start')
-##window_surface = pygame.display.set_mode((800, 600))
-##
-##background = pygame.Surface((800, 600))
-##background.fill(pygame.Color('#000000'))
-##
-##is_running = True
-##
-##while is_running:
-##
-##    for event in pygame.event.get():
-##        if event.type == pygame.QUIT:
-##            is_running = False
-##
-##    window_surface.blit(background, (0, 0))
-##
-##    pygame.display.update()
 
 class PygameWindow():
     def __init__(self,width,height,username,ip):
@@ -204,16 +178,30 @@ class PygameWindow():
                         self.GAME_FIND()
                 self.UIManager.process_events(event)
 
-    def GAME_START(self):
+    def GAME_START(self): #PLAYER 1 stuff here
         ''' Clears the list of items to render on the screen, then draws lobby title text, either waiting for player 2, or player 2 found
         '''
         self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]#empties the screen
         self.GameManager=GameManager(self.ip,self.username,2,self.name,self.password)#2 for create, 3 for join
         lobby_title_text_layout=self.button_layout(0.3,0.3,0.4,0.05,False)
-        lobby_title_text=pygame_gui.elements.UITextBox(html_text=f'''<b><u>{self.GameManager.lobby_name}: Waiting for player 2... </u></b>''',relative_rect=lobby_title_text_layout,manager=self.UIManager)
-    def GAME_FIND(self):
+        lobby_title_text=pygame_gui.elements.UITextBox(html_text=f'''<b><u>{self.GameManager.lobby_name}: Waiting for opponent... </u></b>''',relative_rect=lobby_title_text_layout,manager=self.UIManager)
+        opcode,opponentName=self.PLAYER_JOIN()
+
+    def GAME_FIND(self): #PLAYER 2 stuff here
         self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]
         self.GameManager=GameManager(self.ip,self.username,3,self.name,self.password)
+        opcode,opponentName=self.PLAYER_JOIN()
+
+    def PLAYER_JOIN(self):
+        '''final subroutine to run before synchronisation of the game will begin
+        '''
+        result=threading.Thread(target=self.GameManager.CheckServerResponse,daemon=True).start()
+        while result==None:
+            pass #FIX HERE
+        print(result)
+        self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]#empties the screen
+        return result[0],result[1]
+
     def blit_objects(self):
         pygame.draw.rect(self.screen,(255,255,255),pygame.Rect(0,0,self.screenwidth,self.screenheight))
         for sprite in self.SPRITE_RENDER_LIST:
@@ -325,6 +313,8 @@ class GameManager():
         create_lobby_data=self.FORMAT_DATA(opcode,[username,self.lobby_password,self.lobby_name])
         print(create_lobby_data)
         self.connection.send(create_lobby_data.encode()) #OPCODE 2 IS CREATE LOBBY, OPCODE 3 IS JOIN LOBBY
+        
+
     def CreateConnection(self):
         try:
             self.socketObject.connect(('tank.servegame.com', self.port))
@@ -332,6 +322,23 @@ class GameManager():
         except:
             ERR_CATCH(8)
 
+    def CheckServerResponse(self):
+            self.server_response=self.socketObject.recv(65536).decode()
+            print(self.server_response)
+            return self.server_response
+    def SendData(self,data):
+        ''' Sends the input from the client side to the server, for example any user inputs such as an attack, the angle of the attack, move key pressed.
+            The server will take this data and do the maths on its end, then return the position vectors each item should be at, which the client can
+            blit. I predict this will lose smooth motion of objects, so to counter this the velocity vector of each item could be passed, so the client
+            can make an estimation of the path of the object and then the distance teleported should not be so great if connection is lost.
+            TLDR; lower latency, but potentially unstable motion
+
+            Or, make it so that the time taken between server responses is kept, e.g. 60ms. Then the object moves at a calculated velocity to its
+            target position, so that it takes 60ms to reach it. Then, if the server is averaging a stable response time, the motion will be smooth,
+            and only teleport when ping is unstable. This one will double latency as you have to wait for the next position to exist before moving object.
+            TLDR; fully smooth motion at the cost of double latency
+        '''
+        self.connection.send(data.encode())
     def FORMAT_DATA(self,opcode,data_list):
         data=str(opcode)
         for item in data_list: data+='||'+item

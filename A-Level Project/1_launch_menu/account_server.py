@@ -168,19 +168,21 @@ class ClientHandler:
             ERR_CATCH(1)
 
     def CREATE_LOBBY(self,operation,connection,sockname):
+        '''The player creating a lobby is the host, ref player1
+        '''
         player1,lobby_password,lobby_name=operation[1],operation[2],operation[3]
         cursor=connection.cursor()
         ip=str(sockname[0])
         cursor.execute(f'''SELECT UUID FROM PROFILE_INFO WHERE username="{player1}"''')
         result=cursor.fetchone() #result[0] is player1 id.
         playerID1=result[0]
-        cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE PlayerID1={playerID1}''')
+        cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE PlayerID1="{playerID1}"''')
         result=cursor.fetchone()
         
         if result==None:
             dbAddToTable(connection,'INSERT INTO LOBBY (LobbyName,LobbyPassword,PlayerID1,IsOnline) VALUES (?,?,?,?);',(lobby_name,lobby_password,playerID1,'True'),'LOBBY')
             LogConnection(cursor,connection,player1,ip,f'''Created Lobby: {lobby_name}''')
-            cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE PlayerID1={playerID1}''')
+            cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE PlayerID1="{playerID1}"''')
             result=cursor.fetchone()
             lobby_ID=result[0]
         else:
@@ -191,8 +193,16 @@ class ClientHandler:
         game_log.write(str('Lobby restarted at: '+str(round(time.time()))+'\n\n'))
         game_log.write('User #'+str(playerID1)+': "'+str(player1)+'"is ready.\n\n')
         game_log.close()
+        #now wait until player 2 has joined in the database, by checking the database until a result is found
+        playerID2=None
+        while playerID2==None:
+            cursor.execute(f'''SELECT PlayerID2 FROM LOBBY WHERE LobbyID="{lobby_ID}"''')
+            playerID2=cursor.fetchone()[0] #breaks when player joins
+        self.SendData(4,[playerID2,'Game Ready'])#OPCODE4 is lobby ready, sends the ID of the opponent
 
     def JOIN_LOBBY(self,operation,connection,sockname): #ISSUE - MULTIPLE LOBBIES WITH THE SAME USERNAME AND PASSWORD MEAN USERS ONLY JOIN THE FIRST FETCHED LOBBY
+        '''The player joining a lobby is the guest, ref player2
+        '''
         player2,lobby_password,lobby_name=operation[1],operation[2],operation[3]
         cursor=connection.cursor()
         ip=str(sockname[0])
@@ -209,6 +219,9 @@ class ClientHandler:
         game_log=open(str(str(lobby_ID)+'.txt'),'a')
         game_log.write('User #'+str(playerID2)+': "'+str(player2)+'"is ready.\n\n')
         game_log.close()
+        cursor.execute(f'''SELECT PlayerID1 FROM LOBBY WHERE LobbyID="{lobby_ID}"''')
+        playerID1=cursor.fetchone()[0] #gets the host ID
+        self.SendData(4,[playerID1,'Game Ready'])#OPCODE4 is lobby ready, sends the ID of the opponent
 
 
     def SendData(self,opcode,data_list):
