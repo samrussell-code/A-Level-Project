@@ -114,8 +114,10 @@ class PygameWindow():
         self.UIManager=pygame_gui.UIManager((self.screenwidth,self.screenheight))
         pygame.display.set_caption('Tank Game')
         pygame.mouse.set_visible(1) #the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
-        self.imageDict={'menu_background':Image('menu_background.png',None,1,self.screenwidth,self.screenheight),'menu_title':Image('menu_title.png','#ffffff',0.3,self.screenwidth,self.screenheight)} # all loaded images are stored in dictionary 
-        self.BASE_RECT=pygame.Rect((0,0),(self.screenwidth,self.screenheight))
+        self.imageDict={
+        'bullet-idle_1':Image('bullet-idle_1.png','#ffffff',0.5,self.screenwidth,self.screenheight),
+        'menu_background':Image('menu_background.png',None,1,self.screenwidth,self.screenheight),
+        'menu_title':Image('menu_title.png','#ffffff',0.3,self.screenwidth,self.screenheight)}
         self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5) #sprite of image menu_background, with no collisions, in the centre of screen.
         self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.125)
         self.foreground.animations.update({'Bounce':Animation([
@@ -186,11 +188,13 @@ class PygameWindow():
         lobby_title_text_layout=self.button_layout(0.3,0.3,0.4,0.05,False)
         lobby_title_text=pygame_gui.elements.UITextBox(html_text=f'''<b><u>{self.GameManager.lobby_name}: Waiting for opponent... </u></b>''',relative_rect=lobby_title_text_layout,manager=self.UIManager)
         opcode,opponentName=self.PLAYER_JOIN()
+        self.SpawnPlayers(opponentName,1)
 
     def GAME_FIND(self): #PLAYER 2 stuff here
         self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]
         self.GameManager=GameManager(self.ip,self.username,3,self.name,self.password)
         opcode,opponentName=self.PLAYER_JOIN()
+        self.SpawnPlayers(opponentName,2)
 
     def PLAYER_JOIN(self):
         '''final subroutine to run before synchronisation of the game will begin
@@ -201,6 +205,17 @@ class PygameWindow():
         print(result)
         self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]#empties the screen
         return result[0],result[1]
+    def SpawnPlayers(self,opponentname,playerType=1):
+        if playerType==1:
+            bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],0.1,0.5)
+            self.SPRITE_RENDER_LIST.append(bullet)
+            opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle1'],0.8,0.5)
+            self.SPRITE_RENDER_LIST.append(opponentbullet)
+        elif playerType==2:
+            bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],0.8,0.5)
+            self.SPRITE_RENDER_LIST.append(bullet)
+            opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle1'],0.1,0.5)
+            self.SPRITE_RENDER_LIST.append(opponentbullet)           
 
     def blit_objects(self):
         pygame.draw.rect(self.screen,(255,255,255),pygame.Rect(0,0,self.screenwidth,self.screenheight))
@@ -313,7 +328,7 @@ class GameManager():
         create_lobby_data=self.FORMAT_DATA(opcode,[username,self.lobby_password,self.lobby_name])
         print(create_lobby_data)
         self.connection.send(create_lobby_data.encode()) #OPCODE 2 IS CREATE LOBBY, OPCODE 3 IS JOIN LOBBY
-        
+        self.time=0
 
     def CreateConnection(self):
         try:
