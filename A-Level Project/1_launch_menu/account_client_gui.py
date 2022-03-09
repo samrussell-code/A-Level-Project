@@ -42,7 +42,7 @@ class LaunchWindow(Tk):
     def UpdateClient(self,opcode):
         self.ContactServer(opcode)
         operation=self.RECV_DATA()
-        print(operation)
+        print('updateclient recieved',operation)
         if operation[0]=='0': #recieving the server accepting entry 
             self.infoLabel.config(text=operation[1])
             self.usernameEntry.delete(0,'end')
@@ -57,7 +57,6 @@ class LaunchWindow(Tk):
         password=self.passwordEntry.get()
         try:
             password_token=self.EncryptPassword(password)
-            print(password_token)
         except:
             ERR_CATCH(5)
         #with open('client//username.txt','w') as file: file.write(username);file.close()
@@ -115,9 +114,15 @@ class PygameWindow():
         pygame.display.set_caption('Tank Game')
         pygame.mouse.set_visible(1) #the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
         self.imageDict={
-        'bullet-idle_1':Image('bullet-idle_1.png','#ffffff',0.5,self.screenwidth,self.screenheight),
+        'bullet-idle_1':Image('bullet-idle_1.png','#ffffff',0.025,self.screenwidth,self.screenheight),
         'menu_background':Image('menu_background.png',None,1,self.screenwidth,self.screenheight),
-        'menu_title':Image('menu_title.png','#ffffff',0.3,self.screenwidth,self.screenheight)}
+        'menu_title':Image('menu_title.png','#ffffff',0.3,self.screenwidth,self.screenheight),
+        'ground1':Image('ground1.png',None,0.25,self.screenwidth,self.screenheight),
+        'ground2':Image('ground2.png',None,0.25,self.screenwidth,self.screenheight),
+        'ground3':Image('ground3.png',None,0.25,self.screenwidth,self.screenheight),
+        'tank1':Image('tank1.png','#ffffff',0.15,self.screenwidth,self.screenheight),
+        'tank2':Image('tank2.png','#ffffff',0.15,self.screenwidth,self.screenheight),
+        'tank3':Image('tank3.png','#ffffff',0.15,self.screenwidth,self.screenheight)}
         self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5) #sprite of image menu_background, with no collisions, in the centre of screen.
         self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.125)
         self.foreground.animations.update({'Bounce':Animation([
@@ -199,23 +204,31 @@ class PygameWindow():
     def PLAYER_JOIN(self):
         '''final subroutine to run before synchronisation of the game will begin
         '''
-        result=threading.Thread(target=self.GameManager.CheckServerResponse,daemon=True).start()
+        result=self.GameManager.CheckServerResponse()
         while result==None:
             pass #FIX HERE
-        print(result)
         self.UIManager.clear_and_reset();self.SPRITE_RENDER_LIST=[]#empties the screen
-        return result[0],result[1]
+        return (result[0],result[1])
+    
     def SpawnPlayers(self,opponentname,playerType=1):
         if playerType==1:
-            bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],0.1,0.5)
+            bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
             self.SPRITE_RENDER_LIST.append(bullet)
-            opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle1'],0.8,0.5)
+            opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
             self.SPRITE_RENDER_LIST.append(opponentbullet)
+
         elif playerType==2:
-            bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],0.8,0.5)
+            bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
             self.SPRITE_RENDER_LIST.append(bullet)
-            opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle1'],0.1,0.5)
-            self.SPRITE_RENDER_LIST.append(opponentbullet)           
+            opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
+            self.SPRITE_RENDER_LIST.append(opponentbullet)
+        print('waiting for ground texture code...')
+        result=self.GameManager.CheckServerResponse()#server now sends out type of ground to use in game
+        print('ground texture set up complete.')
+        floor=Sprite(self.screen,self.imageDict[result[1]],False,0.5,0.9)
+        self.SPRITE_RENDER_LIST.append(floor)
+        print('ground texture set up complete.')  
+
 
     def blit_objects(self):
         pygame.draw.rect(self.screen,(255,255,255),pygame.Rect(0,0,self.screenwidth,self.screenheight))
@@ -265,7 +278,7 @@ class Sprite():
         self.animations={}
         self.isCollider=isCollider
         if self.image!=None and isCollider==False:
-            self.collider=BoundingBox(screen,self.imagewidth,self.imageheight,self.pX,self.pY,True)
+            self.collider=BoundingBox(screen,self.imagewidth,self.imageheight,self.pX,self.pY,False)
 
 class BoundingBox():
     '''Class that handles all collisions, used by the Sprite class.
@@ -299,7 +312,7 @@ class Animation():
         Returns a tuple coordinate to be applied to the current position of the object being animated.
         Should be called every frame.
         '''
-        #strange deltatime bug causing increasing position offset of an animation, the lower the framerate.
+        #strange deltatime bug causing increasing position offset of an animation, the lower the framerate. additionally, when window is moved, frame in the animation pauses but time does not, so on next time calculation, large distance is moved.
         #print('instructions=',self.instructions,'current instruction=',self.current_instruction,'instruction length',self.instruction_duration, 'total instructions',self.total_instructions)
         if int(self.instruction_progress)<int(self.instruction_duration):#if current instruction is not yet finished
             self.instruction_progress+=deltatime #increases the progress on the instruction by the change in time since last call.
@@ -322,11 +335,12 @@ class GameManager():
         '''
         self.socketObject=socket.socket()
         self.port=25520
+        self.username=username
+        self.name=name
         self.connection=self.CreateConnection()
         self.lobby_name=name
         self.lobby_password=password
         create_lobby_data=self.FORMAT_DATA(opcode,[username,self.lobby_password,self.lobby_name])
-        print(create_lobby_data)
         self.connection.send(create_lobby_data.encode()) #OPCODE 2 IS CREATE LOBBY, OPCODE 3 IS JOIN LOBBY
         self.time=0
 
@@ -338,8 +352,9 @@ class GameManager():
             ERR_CATCH(8)
 
     def CheckServerResponse(self):
-            self.server_response=self.socketObject.recv(65536).decode()
-            print(self.server_response)
+            self.server_response=(self.socketObject.recv(65536).decode()).split('||')
+            print(len(self.server_response))#debug
+            print('recieved',self.server_response)
             return self.server_response
     def SendData(self,data):
         ''' Sends the input from the client side to the server, for example any user inputs such as an attack, the angle of the attack, move key pressed.
@@ -352,6 +367,21 @@ class GameManager():
             target position, so that it takes 60ms to reach it. Then, if the server is averaging a stable response time, the motion will be smooth,
             and only teleport when ping is unstable. This one will double latency as you have to wait for the next position to exist before moving object.
             TLDR; fully smooth motion at the cost of double latency
+
+            Client will only update the frame using a thread that is only called after a server response (e.g. the framerate is tied to the server response, but not the in game time)
+
+            FORMAT for data to be sent should be as follows, this means that all collisions need to be calculated on server side, the tank, bullet would each be a seperate object
+            This data is purely for rendering an interpretation of the scene on the client, and not for calculating the physics:
+            *userid*
+            objectname||object_position||object_rotation
+            tank||110,323||0.5,0.2||10
+            bullet||116,323||object_rotation
+            FORMAT for purely sending off inputs:
+            *userid*
+            mouse_world_position
+            inputname||on/off
+            inputname||on/off
+            
         '''
         self.connection.send(data.encode())
     def FORMAT_DATA(self,opcode,data_list):

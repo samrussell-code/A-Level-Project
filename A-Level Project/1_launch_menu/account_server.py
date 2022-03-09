@@ -10,6 +10,7 @@
 #Return '1' if password does not match correct password.
 #If the username and password are correct, details must be fetched back to fill out variables for the Account client class.
 import opcode
+import random
 import sqlite3, socket, threading, datetime, time
 from err import ERR_CATCH
 
@@ -81,14 +82,12 @@ def LogConnection(cursor,connection,username,ip,reason='No Reason Given'):
     cursor.execute(f'''SELECT UUID FROM PROFILE_INFO WHERE username="{username}"''');UUID=cursor.fetchone()[0]
     cursor.execute(f'''SELECT IPID FROM CONNECTION_IP WHERE IP="{ip}"''')
     result=cursor.fetchone()
-    print(result)
     if result==None: #adds new IP to table and attempts to get an id again 
         dbAddToTable(connection,'INSERT INTO CONNECTION_IP (IP) VALUES (?);',([ip]),'CONNECTION_IP')
         cursor.execute(f'''SELECT IPID FROM CONNECTION_IP WHERE IP="{ip}"''')
         IPID=cursor.fetchone()[0]
     else:
         IPID=result[0]
-    print(IPID)
     dt=datetime.datetime.now();date=dt.strftime("%d/%m/%y");time=dt.strftime("%X")
     dbAddToTable(connection,'INSERT INTO PROFILE_CONN_HIST (UUID, IPID, AccessDate, AccessTime,AccessReason) VALUES (?,?,?,?,?);',(UUID,IPID,date,time,reason),'PROFILE_CONN_HIST')
     print(f'''Logged Connection at "{time}".''')
@@ -135,11 +134,12 @@ class ClientHandler:
         self.StartThread(socketInfo)
     def StartThread(self,socketInfo):
         threading.Thread(target=self.RecieveData,daemon=True).start()
-    def RecieveData(self):
+    def RecieveData(self): #should only be used for logging in
         try:
             operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
         except:
             ERR_CATCH(7)
+        print('recieved data',operation)
         recv_opcode,username,password,connection=int(operation[0]),operation[1],operation[2],dbConnect('ACCOUNTS')
         dbCreateTable(connection, sql_create_PROFILE_INFO_table),dbCreateTable(connection, sql_create_PROFILE_CONN_HIST_table),dbCreateTable(connection, sql_create_CONNECTION_IP_table),
         dbCreateTable(connection,sql_create_LOBBY_table) if connection is not None else ERR_CATCH(3)
@@ -182,7 +182,7 @@ class ClientHandler:
         if result==None:
             dbAddToTable(connection,'INSERT INTO LOBBY (LobbyName,LobbyPassword,PlayerID1,IsOnline) VALUES (?,?,?,?);',(lobby_name,lobby_password,playerID1,'True'),'LOBBY')
             LogConnection(cursor,connection,player1,ip,f'''Created Lobby: {lobby_name}''')
-            cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE PlayerID1="{playerID1}"''')
+            cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE PlayerID 1="{playerID1}"''')
             result=cursor.fetchone()
             lobby_ID=result[0]
         else:
@@ -191,14 +191,15 @@ class ClientHandler:
             LogConnection(cursor,connection,player1,ip,f'''Updated Lobby: {lobby_name}''')
         game_log=open(str(str(lobby_ID)+'.txt'),'w')
         game_log.write(str('Lobby restarted at: '+str(round(time.time()))+'\n\n'))
-        game_log.write('User #'+str(playerID1)+': "'+str(player1)+'"is ready.\n\n')
+        game_log.write('User #'+str(playerID1)+': "'+str(player1)+'" is ready.\n\n')
         game_log.close()
         #now wait until player 2 has joined in the database, by checking the database until a result is found
         playerID2=None
         while playerID2==None:
             cursor.execute(f'''SELECT PlayerID2 FROM LOBBY WHERE LobbyID="{lobby_ID}"''')
             playerID2=cursor.fetchone()[0] #breaks when player joins
-        self.SendData(4,[playerID2,'Game Ready'])#OPCODE4 is lobby ready, sends the ID of the opponent
+        self.SendData(4,[playerID2,'Game Ready'],False)#OPCODE4 is lobby ready, sends the ID of the opponent
+        self.InGame(lobby_ID)
 
     def JOIN_LOBBY(self,operation,connection,sockname): #ISSUE - MULTIPLE LOBBIES WITH THE SAME USERNAME AND PASSWORD MEAN USERS ONLY JOIN THE FIRST FETCHED LOBBY
         '''The player joining a lobby is the guest, ref player2
@@ -217,19 +218,52 @@ class ClientHandler:
         print('found lobby with ID ',lobby_ID)
         dbAddToTable(connection,'UPDATE LOBBY SET PlayerID2=? WHERE LobbyID=?;',(playerID2,lobby_ID),'LOBBY')
         game_log=open(str(str(lobby_ID)+'.txt'),'a')
-        game_log.write('User #'+str(playerID2)+': "'+str(player2)+'"is ready.\n\n')
+        game_log.write('User #'+str(playerID2)+': "'+str(player2)+'" is ready.\n\n')
+        game_log.write(str('ground'+str(random.randint(1,3))))#line7 is floortype, generates a floortype for the game
         game_log.close()
         cursor.execute(f'''SELECT PlayerID1 FROM LOBBY WHERE LobbyID="{lobby_ID}"''')
         playerID1=cursor.fetchone()[0] #gets the host ID
-        self.SendData(4,[playerID1,'Game Ready'])#OPCODE4 is lobby ready, sends the ID of the opponent
+        self.SendData(4,[playerID1,'Game Ready'],False)#OPCODE4 is lobby ready, sends the ID of the opponent
+        self.InGame(lobby_ID)
+
+    def GameLogManager(self):
+        ''' Starts at both players ready
+        '''
 
 
-    def SendData(self,opcode,data_list):
+
+    def InGame(self,lobby_ID):#both connections are in this subroutine, so need to make sure no generation occurs here
+        '''MAIN
+        '''
+        game_log=open(str(str(lobby_ID)+'.txt'),'r')#using the text file ensures sync across both instances of server connection
+        for pos,line in enumerate(game_log): #this for loop finds the 7th line in the file and sets it to var line
+            if pos == 6:
+                print('line',pos,'is: ',line)
+                floortype=line
+        print('sending ground texture code...')
+        self.SendData(5,[floortype],False)#OPCODE5 is type of ground texture to use
+
+
+
+
+    def SendData(self,opcode,data_list,recieve=True):
         data=str(opcode)
         print('sending data', data_list,opcode)
         for item in data_list: data+='||'+str(item) #formatting data to be sent
         self.socketObject.send(data.encode())
-        self.RecieveData()
+        if recieve==True:
+            self.RecieveData()
+
+    def RecieveGameInfo(self):
+        try:
+            operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
+        except:
+            ERR_CATCH(7)
+        print('recieved data in game',operation)
+        recv_opcode=operation[0]
+        if recv_opcode==4:
+            print('')
+
 
 server=NewServer()
 connections={}
