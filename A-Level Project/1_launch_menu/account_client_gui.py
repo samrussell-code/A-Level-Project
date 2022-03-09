@@ -122,7 +122,11 @@ class PygameWindow():
         'ground3':Image('ground3.png',None,0.25,self.screenwidth,self.screenheight),
         'tank1':Image('tank1.png','#ffffff',0.15,self.screenwidth,self.screenheight),
         'tank2':Image('tank2.png','#ffffff',0.15,self.screenwidth,self.screenheight),
-        'tank3':Image('tank3.png','#ffffff',0.15,self.screenwidth,self.screenheight)}
+        'tank3':Image('tank3.png','#ffffff',0.15,self.screenwidth,self.screenheight),        
+        'enemytank1':Image('enemytank1.png','#ffffff',0.15,self.screenwidth,self.screenheight),
+        'enemytank2':Image('enemytank2.png','#ffffff',0.15,self.screenwidth,self.screenheight),
+        'enemytank3':Image('enemytank3.png','#ffffff',0.15,self.screenwidth,self.screenheight)
+        }
         self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5) #sprite of image menu_background, with no collisions, in the centre of screen.
         self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.125)
         self.foreground.animations.update({'Bounce':Animation([
@@ -213,15 +217,16 @@ class PygameWindow():
     def SpawnPlayers(self,opponentname,playerType=1):
         if playerType==1:
             bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
-            self.SPRITE_RENDER_LIST.append(bullet)
             opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
-            self.SPRITE_RENDER_LIST.append(opponentbullet)
-
+            tank=Sprite(self.screen,self.imageDict['tank1'],False,0.1,0.6)
+            enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.8,0.6)
+            self.SPRITE_RENDER_LIST.extend([bullet,opponentbullet,tank,enemytank])
         elif playerType==2:
             bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
-            self.SPRITE_RENDER_LIST.append(bullet)
             opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
-            self.SPRITE_RENDER_LIST.append(opponentbullet)
+            tank=Sprite(self.screen,self.imageDict['tank1'],False,0.8,0.6)
+            enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.1,0.6)
+            self.SPRITE_RENDER_LIST.extend([bullet,opponentbullet,tank,enemytank])
         print('waiting for ground texture code...')
         result=self.GameManager.CheckServerResponse()#server now sends out type of ground to use in game
         print('ground texture set up complete.')
