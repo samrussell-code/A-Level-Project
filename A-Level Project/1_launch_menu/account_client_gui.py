@@ -159,6 +159,8 @@ class PygameWindow():
             self.calculate_delta_time()
             self.UIManager.update(self.deltatime)
             self.blit_objects()
+            #if self.GAME_START==True:
+                
 
     def button_layout(self,offsetx,offsety,sizex=-1,sizey=-1,auto=True):
         if auto==True: #size of button should be automatic
@@ -232,7 +234,13 @@ class PygameWindow():
         print('ground texture set up complete.')
         floor=Sprite(self.screen,self.imageDict[result[1]],False,0.5,0.9)
         self.SPRITE_RENDER_LIST.append(floor)
-        print('ground texture set up complete.')  
+        print('ground texture set up complete.')
+        self.GAME_START=True
+        threading.Thread(target=self.PingServer,daemon=True).start()  
+
+    def PingServer(self):
+        while self.GAME_START==True:
+            result=self.GameManager.CheckServerResponse()
 
 
     def blit_objects(self):
@@ -361,6 +369,7 @@ class GameManager():
             print(len(self.server_response))#debug
             print('recieved',self.server_response)
             return self.server_response
+
     def SendData(self,data):
         ''' Sends the input from the client side to the server, for example any user inputs such as an attack, the angle of the attack, move key pressed.
             The server will take this data and do the maths on its end, then return the position vectors each item should be at, which the client can

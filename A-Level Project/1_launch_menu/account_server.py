@@ -10,8 +10,10 @@
 #Return '1' if password does not match correct password.
 #If the username and password are correct, details must be fetched back to fill out variables for the Account client class.
 import opcode
+from pickle import TRUE
 import random
 import sqlite3, socket, threading, datetime, time
+from tkinter import END
 from err import ERR_CATCH
 
 sql_create_PROFILE_INFO_table="""CREATE TABLE IF NOT EXISTS PROFILE_INFO (
@@ -199,7 +201,7 @@ class ClientHandler:
             cursor.execute(f'''SELECT PlayerID2 FROM LOBBY WHERE LobbyID="{lobby_ID}"''')
             playerID2=cursor.fetchone()[0] #breaks when player joins
         self.SendData(4,[playerID2,'Game Ready'],False)#OPCODE4 is lobby ready, sends the ID of the opponent
-        self.InGame(lobby_ID)
+        self.InGame(lobby_ID,1)
 
     def JOIN_LOBBY(self,operation,connection,sockname): #ISSUE - MULTIPLE LOBBIES WITH THE SAME USERNAME AND PASSWORD MEAN USERS ONLY JOIN THE FIRST FETCHED LOBBY
         '''The player joining a lobby is the guest, ref player2
@@ -224,17 +226,25 @@ class ClientHandler:
         cursor.execute(f'''SELECT PlayerID1 FROM LOBBY WHERE LobbyID="{lobby_ID}"''')
         playerID1=cursor.fetchone()[0] #gets the host ID
         self.SendData(4,[playerID1,'Game Ready'],False)#OPCODE4 is lobby ready, sends the ID of the opponent
-        self.InGame(lobby_ID)
+        self.InGame(lobby_ID,2)
 
-    def GameLogManager(self):
+    def UpdatePlayerVars(self,playernumber):
         ''' Starts at both players ready
         '''
+        while self.GAME_TIME==True:
+            info_list=self.RecieveGameInfo()
+            #[Input_Left,Input_Right,Queued_Bullet]
+            if playernumber==1:
+                self.Player1.left_input,self.Player1.right_input,self.Player1.bullet_queued=info_list[0],info_list[1],info_list[2]
+            elif playernumber==2:
+                self.Player2.left_input,self.Player2.right_input,self.Player2.bullet_queued=info_list[0],info_list[1],info_list[2]
+                pass
 
-
-
-    def InGame(self,lobby_ID):#both connections are in this subroutine, so need to make sure no generation occurs here
+    def InGame(self,lobby_ID,player):#both connections are in this subroutine, so need to make sure no generation occurs here
         '''MAIN
         '''
+        self.Player1=Player()
+        self.Player2=Player()
         game_log=open(str(str(lobby_ID)+'.txt'),'r')#using the text file ensures sync across both instances of server connection
         for pos,line in enumerate(game_log): #this for loop finds the 7th line in the file and sets it to var line
             if pos == 6:
@@ -242,8 +252,23 @@ class ClientHandler:
                 floortype=line
         print('sending ground texture code...')
         self.SendData(5,[floortype],False)#OPCODE5 is type of ground texture to use
-
-
+        time.sleep(1)
+        self.GAME_TIME=True
+        threading.Thread(target=self.UpdatePlayerVars,args=player,daemon=True).start()
+        while self.GAME_TIME==True:
+            #main game updater, sends data to clients
+            for player in [self.Player1,self.Player2]:
+                if player.left_input==1 and player.right_input!=1:
+                    player.velocity_x=-0.01
+                elif player.right_input==1 and player.left_input!=1:
+                    player.velocity_x=0.01
+                if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
+                    player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
+                    player.bullet.is_queued=False
+                player.position_x+=player.velocity_x;player.position_x+=player.velocity_y #update the positions of each player
+                player.bullet.position_x+=player.bullet.velocity_x
+                player.bullet.position_y+=player.bullet.velocity_y
+            self.SendData(6,[self.Player1.position_x,self.Player1.position_y,self.Player1.bullet.position_x,self.Player1.bullet.position_y,self.Player2.position_x,self.Player2.position_y,self.Player2.bullet.position_x,self.Player2.bullet.position_y],False)#OPCODE6 is game data
 
 
     def SendData(self,opcode,data_list,recieve=True):
@@ -262,8 +287,25 @@ class ClientHandler:
         print('recieved data in game',operation)
         recv_opcode=operation[0]
         if recv_opcode==4:
-            print('')
+            return operation[1:len(operation)-1]
 
+class Player():
+    def __init__(self,init_position_x=0,init_position_y=0):
+        self.left_input=0
+        self.right_input=0
+        self.velocity_x=0
+        self.velocity_y=0
+        self.position_x=init_position_y
+        self.position_y=init_position_y
+        self.bullet=Bullet()
+class Bullet():
+    def __init__(self):
+        self.position_x=0
+        self.position_y=0
+        self.velocity_x=0
+        self.velocity_y=0
+        self.mouse_angle=0
+        self.is_queued=False
 
 server=NewServer()
 connections={}
