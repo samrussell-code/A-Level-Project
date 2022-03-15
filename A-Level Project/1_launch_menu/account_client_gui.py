@@ -1,6 +1,7 @@
 from ast import Sub
 from cgitb import text
 from msilib.schema import Font
+from re import L
 from turtle import screensize
 from err import ERR_CATCH
 from tkinter import *
@@ -159,7 +160,21 @@ class PygameWindow():
             self.calculate_delta_time()
             self.UIManager.update(self.deltatime)
             self.blit_objects()
-            #if self.GAME_START==True:
+
+            if self.GAME_START==True:
+                #e.g.['6', '0', '0', '0', '0', '0', '0', '0', '0']
+                self.old_inf=['6', '0.1', '0.6', '0', '0', '0.8', '0.6', '0', '0']
+                if len(self.GameManager.server_response)==9: #if no data has collided
+                    inf=self.GameManager.server_response
+                    self.old_inf=inf
+                else:
+                    inf=self.old_inf
+                print(inf)
+                self.tank.RefreshPosition(inf[1],inf[2])
+                self.bullet.RefreshPosition(inf[3],inf[4])
+                self.enemytank.RefreshPosition(inf[5],inf[6])
+                self.opponentbullet.RefreshPosition(inf[7],inf[8])
+
                 
 
     def button_layout(self,offsetx,offsety,sizex=-1,sizey=-1,auto=True):
@@ -189,6 +204,12 @@ class PygameWindow():
                     elif event.ui_element==self.join_button:
                         print('join')
                         self.GAME_FIND()
+                if event.type==pygame.KEYDOWN:
+                    if event.key==pygame.K_d:
+                        print('right')
+                    elif event.key==pygame.K_a:
+                        print('left')
+                
                 self.UIManager.process_events(event)
 
     def GAME_START(self): #PLAYER 1 stuff here
@@ -218,27 +239,28 @@ class PygameWindow():
     
     def SpawnPlayers(self,opponentname,playerType=1):
         if playerType==1:
-            bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
-            opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
-            tank=Sprite(self.screen,self.imageDict['tank1'],False,0.1,0.6)
-            enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.8,0.6)
-            self.SPRITE_RENDER_LIST.extend([bullet,opponentbullet,tank,enemytank])
+            self.bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
+            self.opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
+            self.tank=Sprite(self.screen,self.imageDict['tank1'],False,0.1,0.6)
+            self.enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.8,0.6)
+            self.SPRITE_RENDER_LIST.extend([self.bullet,self.opponentbullet,self.tank,self.enemytank])
         elif playerType==2:
-            bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
-            opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
-            tank=Sprite(self.screen,self.imageDict['tank1'],False,0.8,0.6)
-            enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.1,0.6)
-            self.SPRITE_RENDER_LIST.extend([bullet,opponentbullet,tank,enemytank])
+            self.bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
+            self.opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
+            self.tank=Sprite(self.screen,self.imageDict['tank1'],False,0.8,0.6)
+            self.enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.1,0.6)
+            self.SPRITE_RENDER_LIST.extend([self.bullet,self.opponentbullet,self.tank,self.enemytank])
         print('waiting for ground texture code...')
         result=self.GameManager.CheckServerResponse()#server now sends out type of ground to use in game
-        print('ground texture set up complete.')
         floor=Sprite(self.screen,self.imageDict[result[1]],False,0.5,0.9)
         self.SPRITE_RENDER_LIST.append(floor)
         print('ground texture set up complete.')
-        self.GAME_START=True
+        
         threading.Thread(target=self.PingServer,daemon=True).start()  
 
     def PingServer(self):
+        result=self.GameManager.CheckServerResponse() #takes another result so that the game can begin updating positions
+        self.GAME_START=True
         while self.GAME_START==True:
             result=self.GameManager.CheckServerResponse()
 
@@ -286,12 +308,16 @@ class Sprite():
 
             spawnX and spawnY are the initial position of the sprite.
         '''
+        self.screen=screen
         self.image,self.imagewidth,self.imageheight,self.sX,self.pX,self.pY=image.image,image.imagewidth,image.imageheight,image.scaleX,(pivotX*screen.get_width())-(image.imagewidth/2),(pivotY*screen.get_height())-(image.imageheight/2)
-        screen.blit(self.image,(self.pX,self.pY))
+        self.screen.blit(self.image,(self.pX,self.pY))
         self.animations={}
         self.isCollider=isCollider
         if self.image!=None and isCollider==False:
-            self.collider=BoundingBox(screen,self.imagewidth,self.imageheight,self.pX,self.pY,False)
+            self.collider=BoundingBox(self.screen,self.imagewidth,self.imageheight,self.pX,self.pY,False)
+    def RefreshPosition(self,iX,iY):
+        (float(iX)*self.screen.get_width())-(self.imagewidth/2),
+        (float(iY)*self.screen.get_height())-(self.imageheight/2)
 
 class BoundingBox():
     '''Class that handles all collisions, used by the Sprite class.
@@ -366,8 +392,15 @@ class GameManager():
 
     def CheckServerResponse(self):
             self.server_response=(self.socketObject.recv(65536).decode()).split('||')
-            print(len(self.server_response))#debug
-            print('recieved',self.server_response)
+            #find the position in the response list where #kill# is found, then cut the list before this point
+            try:
+                kill_pos=self.server_response.index('kill')
+                self.server_response=self.server_response[:kill_pos] #slices off the end of the recieved data after kill is found
+            except:
+                ERR_CATCH(11)
+            
+           # print(len(self.server_response))#debug
+           # print('recieved',self.server_response)
             return self.server_response
 
     def SendData(self,data):

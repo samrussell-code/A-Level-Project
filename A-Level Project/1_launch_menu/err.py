@@ -10,6 +10,7 @@ def ERR_CATCH(id):
         'Failed to recieve data in thread. (buffer size may have been exceeded)', #7
         'Could not connect to server.', #8
         'User with that name does not exist.', #9
-        'Password is incorrect.' #10
+        'Password is incorrect.', #10
+        'Could not find the data kill value' #11
     ]
     print(str('Error #'+str(id)+'|'+errmsgs[id]+'\n'))

@@ -243,15 +243,15 @@ class ClientHandler:
     def InGame(self,lobby_ID,player):#both connections are in this subroutine, so need to make sure no generation occurs here
         '''MAIN
         '''
-        self.Player1=Player()
-        self.Player2=Player()
+        self.Player1=Player(0.1,0.6)
+        self.Player2=Player(0.8,0.6)
         game_log=open(str(str(lobby_ID)+'.txt'),'r')#using the text file ensures sync across both instances of server connection
         for pos,line in enumerate(game_log): #this for loop finds the 7th line in the file and sets it to var line
             if pos == 6:
                 print('line',pos,'is: ',line)
                 floortype=line
         print('sending ground texture code...')
-        self.SendData(5,[floortype],False)#OPCODE5 is type of ground texture to use
+        self.SendData(5,[floortype,'kill||'],False)#OPCODE5 is type of ground texture to use
         time.sleep(1)
         self.GAME_TIME=True
         threading.Thread(target=self.UpdatePlayerVars,args=player,daemon=True).start()
@@ -268,7 +268,17 @@ class ClientHandler:
                 player.position_x+=player.velocity_x;player.position_x+=player.velocity_y #update the positions of each player
                 player.bullet.position_x+=player.bullet.velocity_x
                 player.bullet.position_y+=player.bullet.velocity_y
-            self.SendData(6,[self.Player1.position_x,self.Player1.position_y,self.Player1.bullet.position_x,self.Player1.bullet.position_y,self.Player2.position_x,self.Player2.position_y,self.Player2.bullet.position_x,self.Player2.bullet.position_y],False)#OPCODE6 is game data
+            self.SendData(6,[
+            self.Player1.position_x,
+            self.Player1.position_y,
+            self.Player1.bullet.position_x,
+            self.Player1.bullet.position_y,
+            self.Player2.position_x,
+            self.Player2.position_y,
+            self.Player2.bullet.position_x,
+            self.Player2.bullet.position_y,
+            'kill||'
+            ],False)#OPCODE6 is game data
 
 
     def SendData(self,opcode,data_list,recieve=True):
@@ -278,7 +288,7 @@ class ClientHandler:
         self.socketObject.send(data.encode())
         if recieve==True:
             self.RecieveData()
-
+        #6||0||0||0||0||kill|| 6||0||0||0||0||kill|| 6||0||0||0||0||kill||
     def RecieveGameInfo(self):
         try:
             operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
@@ -295,7 +305,7 @@ class Player():
         self.right_input=0
         self.velocity_x=0
         self.velocity_y=0
-        self.position_x=init_position_y
+        self.position_x=init_position_x
         self.position_y=init_position_y
         self.bullet=Bullet()
 class Bullet():
