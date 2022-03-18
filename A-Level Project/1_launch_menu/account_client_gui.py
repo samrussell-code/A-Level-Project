@@ -1,15 +1,14 @@
-from ast import Sub
+from ast import Sub, excepthandler
 from cgitb import text
 from msilib.schema import Font
 from re import L
 from turtle import screensize
 from err import ERR_CATCH
 from tkinter import *
-import winsound
 from functools import partial
 from cryptography.hazmat.primitives import hashes
-import os, socket, threading
-import pygame, pygame_gui
+import socket, threading, pygame, pygame_gui
+
 class LaunchWindow(Tk):
     def __init__(self):
         super().__init__()
@@ -124,13 +123,17 @@ class PygameWindow():
         'tank1':Image('tank1.png','#ffffff',0.15,self.screenwidth,self.screenheight),
         'tank2':Image('tank2.png','#ffffff',0.15,self.screenwidth,self.screenheight),
         'tank3':Image('tank3.png','#ffffff',0.15,self.screenwidth,self.screenheight),        
-        'enemytank1':Image('enemytank1.png','#ffffff',0.15,self.screenwidth,self.screenheight),
+        'enemytank1':Image('enemytank1.png','#ffffff',0.05,self.screenwidth,self.screenheight),
         'enemytank2':Image('enemytank2.png','#ffffff',0.15,self.screenwidth,self.screenheight),
         'enemytank3':Image('enemytank3.png','#ffffff',0.15,self.screenwidth,self.screenheight)
         }
+        self.selectAudio={
+        'bgamb':pygame.mixer.music.load('mp3/bgamb.mp3')
+        }
+        pygame.mixer.music.set_volume(0.2)
         self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5) #sprite of image menu_background, with no collisions, in the centre of screen.
-        self.foreground=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.125)
-        self.foreground.animations.update({'Bounce':Animation([
+        self.title_object=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.125)
+        self.title_object.animations.update({'Bounce':VectorAnimation([
         '300 0 -0.1', #syntax FRAMES X_update Y_update
         '500 0 0',
         '300 0 0.1',
@@ -148,8 +151,9 @@ class PygameWindow():
         password_entry_layout=self.button_layout(0.6,0.6,0.2,0.1,False)
         self.password_entry=pygame_gui.elements.UITextEntryLine(relative_rect=password_entry_layout,manager=self.UIManager)
 
-        self.SPRITE_RENDER_LIST=[self.background,self.foreground] #every sprite to be rendered should go in this list, sprite on top is end of list.
+        self.SPRITE_RENDER_LIST=[self.background,self.title_object] #every sprite to be rendered should go in this list, sprite on top is end of list.
         self.last_time=0
+        self.input_list=[0,0,0,'kill||']
         self.update()
 
     def update(self):
@@ -163,19 +167,24 @@ class PygameWindow():
 
             if self.GAME_START==True:
                 #e.g.['6', '0', '0', '0', '0', '0', '0', '0', '0']
-                self.old_inf=['6', '0.1', '0.6', '0', '0', '0.8', '0.6', '0', '0']
+                self.old_inf=['6', '0.1', '0.6', '0.5', '0.5', '0.8', '0.6', '0.5', '0.5']
                 if len(self.GameManager.server_response)==9: #if no data has collided
                     inf=self.GameManager.server_response
                     self.old_inf=inf
-                else:
+                else: #data collision avoidance
                     inf=self.old_inf
-                print(inf)
+                print('inf:',inf)
+                print('ORIGINAL TANK PX/PY',self.tank.pX,self.tank.pY)
                 self.tank.RefreshPosition(inf[1],inf[2])
+                print('NEW TANK PX/PY',self.tank.pX,self.tank.pY)
                 self.bullet.RefreshPosition(inf[3],inf[4])
+                print('NEW BULLET PX/PY',self.bullet.pX,self.bullet.pY)
                 self.enemytank.RefreshPosition(inf[5],inf[6])
+                print('NEW ENEMYTANK PX/PY',self.enemytank.pX,self.enemytank.pY)
                 self.opponentbullet.RefreshPosition(inf[7],inf[8])
+                print('NEW OPPONENTBULLET PX/PY',self.opponentbullet.pX,self.opponentbullet.pY)
 
-                
+          
 
     def button_layout(self,offsetx,offsety,sizex=-1,sizey=-1,auto=True):
         if auto==True: #size of button should be automatic
@@ -204,12 +213,22 @@ class PygameWindow():
                     elif event.ui_element==self.join_button:
                         print('join')
                         self.GAME_FIND()
-                if event.type==pygame.KEYDOWN:
-                    if event.key==pygame.K_d:
-                        print('right')
-                    elif event.key==pygame.K_a:
-                        print('left')
-                
+                if self.GAME_START==True: #these are checked only during game runtime
+                    #[a,d,m1]
+                    if event.type==pygame.KEYDOWN:
+                        if event.key==pygame.K_a:
+                            print('left')
+                            self.input_list[0]=1                            
+                        elif event.key==pygame.K_d:
+                            print('right')
+                            self.input_list[1]=1
+                    if event.type==pygame.KEYUP:
+                        if event.key==pygame.K_a:
+                            print('left up')
+                            self.input_list[0]=0
+                        if event.key==pygame.K_d:
+                            print('right up')
+                            self.input_list[1]=0                
                 self.UIManager.process_events(event)
 
     def GAME_START(self): #PLAYER 1 stuff here
@@ -255,15 +274,26 @@ class PygameWindow():
         floor=Sprite(self.screen,self.imageDict[result[1]],False,0.5,0.9)
         self.SPRITE_RENDER_LIST.append(floor)
         print('ground texture set up complete.')
-        
+        self.selectAudio['bgamb']
+        pygame.mixer.music.play()        
         threading.Thread(target=self.PingServer,daemon=True).start()  
-
+        
     def PingServer(self):
         result=self.GameManager.CheckServerResponse() #takes another result so that the game can begin updating positions
         self.GAME_START=True
+        threading.Thread(target=self.SendToServer,daemon=True).start()
         while self.GAME_START==True:
             result=self.GameManager.CheckServerResponse()
 
+    def SendToServer(self):
+        '''
+        every loop, collect the pending inputs from a list of possible inputs
+        then send the list of inputs to the server, for the server to convert into motion
+        '''
+        while self.GAME_START==True:
+            self.GameManager.SendData(self.input_list)
+            #print('sent input:',self.input_list)
+        
 
     def blit_objects(self):
         pygame.draw.rect(self.screen,(255,255,255),pygame.Rect(0,0,self.screenwidth,self.screenheight))
@@ -272,7 +302,11 @@ class PygameWindow():
                 update_x,update_y=animation.UpdateAnimation(self.deltatime)
                 sprite.pX+=(update_x*self.deltatime)
                 sprite.pY+=(update_y*self.deltatime)
-            self.screen.blit(sprite.image,(sprite.pX,sprite.pY)) #renders every sprite
+            print(self.SPRITE_RENDER_LIST.index(sprite))
+            try:
+                self.screen.blit(sprite.image,(sprite.pX,sprite.pY)) #renders every sprite
+            except:
+                print('did not blit sprite',self.SPRITE_RENDER_LIST.index(sprite))
             if sprite.isCollider==False:
                 if sprite.collider.debugBBox==True:  #renders the colliders for each sprite that has debug set to true
                     self.screen.blit(sprite.collider.surface,(sprite.pX,sprite.pY))
@@ -313,11 +347,12 @@ class Sprite():
         self.screen.blit(self.image,(self.pX,self.pY))
         self.animations={}
         self.isCollider=isCollider
+        print('sprite of :',self.image,self.pX,self.pY)
         if self.image!=None and isCollider==False:
             self.collider=BoundingBox(self.screen,self.imagewidth,self.imageheight,self.pX,self.pY,False)
     def RefreshPosition(self,iX,iY):
-        (float(iX)*self.screen.get_width())-(self.imagewidth/2),
-        (float(iY)*self.screen.get_height())-(self.imageheight/2)
+        self.pX=(float(iX)*self.screen.get_width())-(self.imagewidth/2)
+        self.pY=(float(iY)*self.screen.get_height())-(self.imageheight/2)
 
 class BoundingBox():
     '''Class that handles all collisions, used by the Sprite class.
@@ -337,7 +372,7 @@ class BoundingBox():
         self.surface.fill((255,0,0))
         self.screen.blit(self.surface,(self.topLeft[0],self.topLeft[1]))
 
-class Animation():
+class VectorAnimation():
     def __init__(self,instructions):
         self.tick=0
         self.current_instruction=0
@@ -345,7 +380,7 @@ class Animation():
         self.instructions=instructions
         self.total_instructions=len(self.instructions)-1
         self.instruction_duration=int((self.instructions[self.current_instruction]).split(' ')[0])
-
+    #FIX THIS - take the original position of the object before the animation, so the object can reset position on loop
     def UpdateAnimation(self,deltatime):
         '''
         Returns a tuple coordinate to be applied to the current position of the object being animated.
@@ -400,7 +435,7 @@ class GameManager():
                 ERR_CATCH(11)
             
            # print(len(self.server_response))#debug
-           # print('recieved',self.server_response)
+            print('recieved',self.server_response)
             return self.server_response
 
     def SendData(self,data):
@@ -430,10 +465,11 @@ class GameManager():
             inputname||on/off
             
         '''
+        data=self.FORMAT_DATA(4,data)#OPCODE4 is game data
         self.connection.send(data.encode())
     def FORMAT_DATA(self,opcode,data_list):
         data=str(opcode)
-        for item in data_list: data+='||'+item
+        for item in data_list: data+='||'+str(item)
         return data
 
 launch_window=LaunchWindow()

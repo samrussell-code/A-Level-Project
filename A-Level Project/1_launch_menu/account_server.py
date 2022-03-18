@@ -232,15 +232,20 @@ class ClientHandler:
         ''' Starts at both players ready
         '''
         while self.GAME_TIME==True:
-            info_list=self.RecieveGameInfo()
-            #[Input_Left,Input_Right,Queued_Bullet]
-            if playernumber==1:
-                self.Player1.left_input,self.Player1.right_input,self.Player1.bullet_queued=info_list[0],info_list[1],info_list[2]
-            elif playernumber==2:
-                self.Player2.left_input,self.Player2.right_input,self.Player2.bullet_queued=info_list[0],info_list[1],info_list[2]
-                pass
+            try:
+                info_list=self.RecieveGameInfo()
+                print('info list:',info_list)
+                #[Input_Left,Input_Right,Queued_Bullet]
+                if playernumber==1:
+                    self.Player1.left_input,self.Player1.right_input,self.Player1.bullet_queued=info_list[0],info_list[1],info_list[2]
+                    #info for player 1 has been collected. in order to communicate this to player 2, and retrieve their data, two instances of clienthandler must communicate externally.
+                elif playernumber==2:
+                    self.Player2.left_input,self.Player2.right_input,self.Player2.bullet_queued=info_list[0],info_list[1],info_list[2]#
+            except:
+                print()
+            
 
-    def InGame(self,lobby_ID,player):#both connections are in this subroutine, so need to make sure no generation occurs here
+    def InGame(self,lobby_ID,player_id):#both connections are in this subroutine, so need to make sure no generation occurs here
         '''MAIN
         '''
         self.Player1=Player(0.1,0.6)
@@ -254,20 +259,29 @@ class ClientHandler:
         self.SendData(5,[floortype,'kill||'],False)#OPCODE5 is type of ground texture to use
         time.sleep(1)
         self.GAME_TIME=True
-        threading.Thread(target=self.UpdatePlayerVars,args=player,daemon=True).start()
+        threading.Thread(target=self.UpdatePlayerVars,args=(player_id,),daemon=True).start()
         while self.GAME_TIME==True:
             #main game updater, sends data to clients
+            playerno=0
             for player in [self.Player1,self.Player2]:
-                if player.left_input==1 and player.right_input!=1:
-                    player.velocity_x=-0.01
-                elif player.right_input==1 and player.left_input!=1:
-                    player.velocity_x=0.01
+                playerno+=1
+                #print('player.left:',player.left_input,'player.right:',player.right_input,'player.velocity:',player.velocity_x,'player.position',player.position_x, self.Player1.position_x, self.Player2.position_x)
+                if int(player.left_input)==1 and int(player.right_input)!=1:
+                    player.velocity_x=-0.001
+                elif int(player.right_input)==1 and int(player.left_input)!=1:
+                    player.velocity_x=0.001
+                elif int(player.right_input)==0 and int(player.left_input)==0:
+                    player.velocity_x=0
                 if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
                     player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
                     player.bullet.is_queued=False
-                player.position_x+=player.velocity_x;player.position_x+=player.velocity_y #update the positions of each player
+                player.position_x+=player.velocity_x;player.position_y+=player.velocity_y #update the positions of each player
                 player.bullet.position_x+=player.bullet.velocity_x
                 player.bullet.position_y+=player.bullet.velocity_y
+                if playerno==1:
+                    self.Player1=player
+                elif playerno==2:
+                    self.Player2=player
             self.SendData(6,[
             self.Player1.position_x,
             self.Player1.position_y,
@@ -285,6 +299,7 @@ class ClientHandler:
         data=str(opcode)
         print('sending data', data_list,opcode)
         for item in data_list: data+='||'+str(item) #formatting data to be sent
+        print(data)
         self.socketObject.send(data.encode())
         if recieve==True:
             self.RecieveData()
@@ -294,10 +309,17 @@ class ClientHandler:
             operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
         except:
             ERR_CATCH(7)
-        print('recieved data in game',operation)
-        recv_opcode=operation[0]
-        if recv_opcode==4:
-            return operation[1:len(operation)-1]
+        kill_pos=operation.index('kill')
+        operation=operation[:kill_pos]
+        try:
+            while operation[0]!='4':
+                operation=operation[1:len(operation)] #data error, makes sure first value is always the opcode 4
+                recv_opcode=operation[0]
+                #print('recieved data in game',operation)
+                return operation[1:len(operation)]
+        except:
+            ERR_CATCH(12)
+
 
 class Player():
     def __init__(self,init_position_x=0,init_position_y=0):
@@ -307,11 +329,11 @@ class Player():
         self.velocity_y=0
         self.position_x=init_position_x
         self.position_y=init_position_y
-        self.bullet=Bullet()
+        self.bullet=Bullet(init_position_x,init_position_y)
 class Bullet():
-    def __init__(self):
-        self.position_x=0
-        self.position_y=0
+    def __init__(self,init_x,init_y):
+        self.position_x=init_x
+        self.position_y=init_y
         self.velocity_x=0
         self.velocity_y=0
         self.mouse_angle=0
