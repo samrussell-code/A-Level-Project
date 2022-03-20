@@ -155,6 +155,7 @@ class PygameWindow():
         self.SPRITE_RENDER_LIST=[self.background,self.title_object] #every sprite to be rendered should go in this list, sprite on top is end of list.
         self.last_time=0
         self.input_list=[0,0,0,'kill||']
+        self.old_inf=['6', '10', '10', '10', '10', '10', '10', '10', '10']
         self.update()
 
     def update(self):
@@ -168,7 +169,6 @@ class PygameWindow():
 
             if self.GAME_START==True:
                 #e.g.['6', '0', '0', '0', '0', '0', '0', '0', '0']
-                self.old_inf=['6', '10', '10', '10', '10', '10', '10', '10', '10'] #objects are rendered out of bounds
                 if len(self.GameManager.server_response)==9: #if no data has collided
                     inf=self.GameManager.server_response
                     self.old_inf=inf

@@ -318,7 +318,7 @@ class ClientHandler:
                 cursor=connection.cursor()
                 cursor.execute(f'''SELECT Player2Data FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''') # 
                 result=cursor.fetchone()[0]
-                print('got a player 2 position of ',result)
+                #print('got a player 2 position of ',result)
                 self.Player2.set_position(result)      
             elif int(player_id)==2:
                 #upload player 2 inputs to database
@@ -328,7 +328,7 @@ class ClientHandler:
                 cursor.execute(f'''SELECT Player1Data FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''') # 
                 result=cursor.fetchone()[0]
                 self.Player1.set_position(result)
-            print(self.Player1.get_position(),self.Player2.get_position())
+            #print(self.Player1.get_position(),self.Player2.get_position())
 
     def SendData(self,opcode,data_list,recieve=True):
         data=str(opcode)
@@ -380,7 +380,7 @@ class Player():
         return str(self.position_x)+' '+str(self.position_y)
     def set_position(self,input_str):
         input_str=input_str.split()
-        print('input string:',input_str)
+        #print('input string:',input_str)
         self.position_x,self.position_y=float(input_str[0]),float(input_str[1])
 class Bullet():
     def __init__(self,init_x,init_y):
