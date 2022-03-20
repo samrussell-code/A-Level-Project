@@ -14,7 +14,7 @@ class LaunchWindow(Tk):
         super().__init__()
         self.WIDTH,self.HEIGHT=1920,1080
         self.title('Tank Game Launcher')
-        self.geometry('1888x1062+0+0')
+        self.geometry('1280x720+0+0')
         self.minsize(640,360)
         self.config(bg='#464646')
         #self.iconbitmap('assets//jack.ico')
@@ -22,7 +22,10 @@ class LaunchWindow(Tk):
         self.inputFont=('Calibri Light',10)
         self.smallFont=('Cambria Math',10)
         self.titleFont=('Cambria Math',35)
+        self.resolutionChoice=StringVar(value=('256x144','512x288','640x360','960x540','1152x648','1280x720','1664x936','1920x1080','2048x1152','2560x1440','3840x2160'))
         self.gameTitleLabel=Label(text='TANK GAME',bg='#464646',fg='#eeeeee',font=self.titleFont)
+        self.resListLabel=Label(text='Resolution:',bg='#464646',fg='#eeeeee',font=self.smallFont)
+        self.resListbox=Listbox(self,listvariable=self.resolutionChoice,height=1,font=self.inputFont,selectmode='SINGLE')
         self.usernameLabel=Label(text='Username',bg='#464646',fg='#eeeeee',font=self.mediumFont)
         self.usernameEntry=Entry(bg='#eeeeee',fg='#464646',font=self.inputFont)
         self.passwordLabel=Label(text='Password',bg='#464646',fg='#eeeeee',font=self.mediumFont)
@@ -30,7 +33,10 @@ class LaunchWindow(Tk):
         self.infoLabel=Label(text='',bg='#464646',fg='#eeeeee',font=self.smallFont,anchor=CENTER)
         self.loginButton=Button(text='Login',bg='#eeeeee',fg='#464646',font=self.mediumFont,command=partial(self.UpdateClient,1))
         self.registerButton=Button(text='Register',bg='#eeeeee',fg='#464646',font=self.mediumFont,command=partial(self.UpdateClient,0))
+        self.resListbox.select_set(3)
         self.gameTitleLabel.place(relx=24/64,rely=3/40,relwidth=1/4,relheight=1/15)
+        self.resListLabel.place(relx=14/16,rely=3/80,relwidth=1/16,relheight=1/30)
+        self.resListbox.place(relx=14/16,rely=3/40,relwidth=1/16,relheight=1/8)
         self.usernameLabel.place(relx=7/16,rely=7/40,relwidth=1/8,relheight=1/30)
         self.usernameEntry.place(relx=7/16,rely=9/40,relwidth=1/8,relheight=1/20)
         self.passwordLabel.place(relx=7/16,rely=14/40,relwidth=1/8,relheight=1/30)
@@ -48,8 +54,10 @@ class LaunchWindow(Tk):
             self.usernameEntry.delete(0,'end')
             self.passwordEntry.delete(0,'end')
             if operation[2]=='1':#operation[2] is a true/false success/fail
+                resStr=self.resListbox.get(self.resListbox.curselection())
+                res=resStr.split('x')
                 self.destroy()
-                resX,resY=640,360
+                resX,resY=int(res[0]),int(res[1])
                 game_window=PygameWindow(resX,resY,self.username,socket.gethostname())
 
     def ContactServer(self,opcode):
@@ -93,6 +101,8 @@ class LaunchWindow(Tk):
             self.UpdateFontSize(self.passwordEntry,self.inputFont)
             self.UpdateFontSize(self.loginButton,self.inputFont)
             self.UpdateFontSize(self.registerButton,self.inputFont)
+            self.UpdateFontSize(self.resListLabel,self.smallFont)
+            self.UpdateFontSize(self.resListbox,self.inputFont)
         self.after(100,self.update)
     def CheckWindowChange(self,width):
         return True if self.WIDTH!=self.winfo_width() else False
@@ -120,12 +130,12 @@ class PygameWindow():
         'ground1':Image('ground1.png',None,0.25,self.screenwidth,self.screenheight),
         'ground2':Image('ground2.png',None,0.25,self.screenwidth,self.screenheight),
         'ground3':Image('ground3.png',None,0.25,self.screenwidth,self.screenheight),
-        'tank1':Image('tank1.png','#ffffff',0.15,self.screenwidth,self.screenheight),
-        'tank2':Image('tank2.png','#ffffff',0.15,self.screenwidth,self.screenheight),
-        'tank3':Image('tank3.png','#ffffff',0.15,self.screenwidth,self.screenheight),        
+        'tank1':Image('tank1.png','#ffffff',0.05,self.screenwidth,self.screenheight),
+        'tank2':Image('tank2.png','#ffffff',0.05,self.screenwidth,self.screenheight),
+        'tank3':Image('tank3.png','#ffffff',0.05,self.screenwidth,self.screenheight),        
         'enemytank1':Image('enemytank1.png','#ffffff',0.05,self.screenwidth,self.screenheight),
-        'enemytank2':Image('enemytank2.png','#ffffff',0.15,self.screenwidth,self.screenheight),
-        'enemytank3':Image('enemytank3.png','#ffffff',0.15,self.screenwidth,self.screenheight)
+        'enemytank2':Image('enemytank2.png','#ffffff',0.05,self.screenwidth,self.screenheight),
+        'enemytank3':Image('enemytank3.png','#ffffff',0.05,self.screenwidth,self.screenheight)
         }
         self.selectAudio={
         'bgamb':pygame.mixer.music.load('mp3/bgamb.mp3'),
@@ -133,7 +143,7 @@ class PygameWindow():
         }
         pygame.mixer.music.set_volume(0.05)
         self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5) #sprite of image menu_background, with no collisions, in the centre of screen.
-        self.title_object=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.125)
+        self.title_object=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.15)
         self.title_object.animations.update({'Bounce':VectorAnimation([
         '300 0 -0.1', #syntax FRAMES X_update Y_update
         '500 0 0',

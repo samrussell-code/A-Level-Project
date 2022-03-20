@@ -279,9 +279,9 @@ class ClientHandler:
             player=player_list[player_id-1]
             #print('player.left:',player.left_input,'player.right:',player.right_input,'player.velocity:',player.velocity_x,'player.position',player.position_x, self.Player1.position_x, self.Player2.position_x)
             if int(player.left_input)==1 and int(player.right_input)!=1:
-                player.velocity_x=-0.0001
+                player.velocity_x=-0.00001
             elif int(player.right_input)==1 and int(player.left_input)!=1:
-                player.velocity_x=0.0001
+                player.velocity_x=0.00001
             elif int(player.right_input)==0 and int(player.left_input)==0:
                 player.velocity_x=0
             if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
