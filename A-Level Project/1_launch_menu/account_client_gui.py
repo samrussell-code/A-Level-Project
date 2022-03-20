@@ -49,7 +49,7 @@ class LaunchWindow(Tk):
             self.passwordEntry.delete(0,'end')
             if operation[2]=='1':#operation[2] is a true/false success/fail
                 self.destroy()
-                resX,resY=1280,720
+                resX,resY=640,360
                 game_window=PygameWindow(resX,resY,self.username,socket.gethostname())
 
     def ContactServer(self,opcode):
@@ -128,9 +128,10 @@ class PygameWindow():
         'enemytank3':Image('enemytank3.png','#ffffff',0.15,self.screenwidth,self.screenheight)
         }
         self.selectAudio={
-        'bgamb':pygame.mixer.music.load('mp3/bgamb.mp3')
+        'bgamb':pygame.mixer.music.load('mp3/bgamb.mp3'),
+        'fire':pygame.mixer.music.load('mp3/fire.mp3')
         }
-        pygame.mixer.music.set_volume(0.2)
+        pygame.mixer.music.set_volume(0.05)
         self.background=Sprite(self.screen,self.imageDict['menu_background'],True,0.5,0.5) #sprite of image menu_background, with no collisions, in the centre of screen.
         self.title_object=Sprite(self.screen,self.imageDict['menu_title'],False,0.5,0.125)
         self.title_object.animations.update({'Bounce':VectorAnimation([
@@ -167,22 +168,22 @@ class PygameWindow():
 
             if self.GAME_START==True:
                 #e.g.['6', '0', '0', '0', '0', '0', '0', '0', '0']
-                self.old_inf=['6', '0.1', '0.6', '0.5', '0.5', '0.8', '0.6', '0.5', '0.5']
+                self.old_inf=['6', '10', '10', '10', '10', '10', '10', '10', '10'] #objects are rendered out of bounds
                 if len(self.GameManager.server_response)==9: #if no data has collided
                     inf=self.GameManager.server_response
                     self.old_inf=inf
                 else: #data collision avoidance
                     inf=self.old_inf
-                print('inf:',inf)
-                print('ORIGINAL TANK PX/PY',self.tank.pX,self.tank.pY)
+                #print('inf:',inf)
+                #print('ORIGINAL TANK PX/PY',self.tank.pX,self.tank.pY)
                 self.tank.RefreshPosition(inf[1],inf[2])
-                print('NEW TANK PX/PY',self.tank.pX,self.tank.pY)
+                #print('NEW TANK PX/PY',self.tank.pX,self.tank.pY)
                 self.bullet.RefreshPosition(inf[3],inf[4])
-                print('NEW BULLET PX/PY',self.bullet.pX,self.bullet.pY)
+                #print('NEW BULLET PX/PY',self.bullet.pX,self.bullet.pY)
                 self.enemytank.RefreshPosition(inf[5],inf[6])
-                print('NEW ENEMYTANK PX/PY',self.enemytank.pX,self.enemytank.pY)
+                #print('NEW ENEMYTANK PX/PY',self.enemytank.pX,self.enemytank.pY)
                 self.opponentbullet.RefreshPosition(inf[7],inf[8])
-                print('NEW OPPONENTBULLET PX/PY',self.opponentbullet.pX,self.opponentbullet.pY)
+                #print('NEW OPPONENTBULLET PX/PY',self.opponentbullet.pX,self.opponentbullet.pY)
 
           
 
@@ -217,17 +218,17 @@ class PygameWindow():
                     #[a,d,m1]
                     if event.type==pygame.KEYDOWN:
                         if event.key==pygame.K_a:
-                            print('left')
+                            #print('left')
                             self.input_list[0]=1                            
                         elif event.key==pygame.K_d:
-                            print('right')
+                            #print('right')
                             self.input_list[1]=1
                     if event.type==pygame.KEYUP:
                         if event.key==pygame.K_a:
-                            print('left up')
+                            #print('left up')
                             self.input_list[0]=0
                         if event.key==pygame.K_d:
-                            print('right up')
+                            #print('right up')
                             self.input_list[1]=0                
                 self.UIManager.process_events(event)
 
@@ -302,11 +303,12 @@ class PygameWindow():
                 update_x,update_y=animation.UpdateAnimation(self.deltatime)
                 sprite.pX+=(update_x*self.deltatime)
                 sprite.pY+=(update_y*self.deltatime)
-            print(self.SPRITE_RENDER_LIST.index(sprite))
+            #print(self.SPRITE_RENDER_LIST.index(sprite))
             try:
                 self.screen.blit(sprite.image,(sprite.pX,sprite.pY)) #renders every sprite
             except:
-                print('did not blit sprite',self.SPRITE_RENDER_LIST.index(sprite))
+                #print('did not blit sprite',self.SPRITE_RENDER_LIST.index(sprite))
+                pass
             if sprite.isCollider==False:
                 if sprite.collider.debugBBox==True:  #renders the colliders for each sprite that has debug set to true
                     self.screen.blit(sprite.collider.surface,(sprite.pX,sprite.pY))
@@ -347,7 +349,7 @@ class Sprite():
         self.screen.blit(self.image,(self.pX,self.pY))
         self.animations={}
         self.isCollider=isCollider
-        print('sprite of :',self.image,self.pX,self.pY)
+        #print('sprite of :',self.image,self.pX,self.pY)
         if self.image!=None and isCollider==False:
             self.collider=BoundingBox(self.screen,self.imagewidth,self.imageheight,self.pX,self.pY,False)
     def RefreshPosition(self,iX,iY):
@@ -432,10 +434,11 @@ class GameManager():
                 kill_pos=self.server_response.index('kill')
                 self.server_response=self.server_response[:kill_pos] #slices off the end of the recieved data after kill is found
             except:
-                ERR_CATCH(11)
+                #ERR_CATCH(11)
+                pass
             
            # print(len(self.server_response))#debug
-            print('recieved',self.server_response)
+           # print('recieved',self.server_response)
             return self.server_response
 
     def SendData(self,data):

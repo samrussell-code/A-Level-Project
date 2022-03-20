@@ -39,17 +39,20 @@ sql_create_LOBBY_table="""CREATE TABLE IF NOT EXISTS LOBBY (
     LobbyPassword blob,
     PlayerID1 integer,
     PlayerID2 integer,
-    IsOnline blob
+    IsOnline blob,
+    Player1Data blob,
+    Player2Data blob
 );"""
 def dbCreateTable(connection,create_table_sql):
     '''only run this to create a new table in the db'''
     cursor=connection.cursor() #used to modify database
     cursor.execute(create_table_sql) #runs the sql formatted command to create a table
-def dbAddToTable(connection,sql_insert,values,table_name='00_UNKNOWN_00'):
+def dbAddToTable(connection,sql_insert,values,table_name='00_UNKNOWN_00',debug=True):
     cursor=connection.cursor()
     cursor.execute(sql_insert,values)
     connection.commit()
-    print(cursor.rowcount,'record inserted into table: ',table_name)
+    if debug==True:
+        print(cursor.rowcount,'record inserted into table: ',table_name)
 def dbConnect(filename):
     print('Connecting to',filename,'...')
     connection=sqlite3.connect(str(filename+'.db'))
@@ -105,7 +108,7 @@ def LOGIN_ACCOUNT(username,password,connection,sockname):
     try:
         result=result[0]
     except:
-        pass
+        ERR_CATCH(0)
     if result==None:
         ERR_CATCH(9)
     elif len(result)==0:
@@ -140,8 +143,9 @@ class ClientHandler:
         try:
             operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
         except:
-            ERR_CATCH(7)
-        print('recieved data',operation)
+            #ERR_CATCH(7)
+            pass
+        #print('recieved data',operation)
         recv_opcode,username,password,connection=int(operation[0]),operation[1],operation[2],dbConnect('ACCOUNTS')
         dbCreateTable(connection, sql_create_PROFILE_INFO_table),dbCreateTable(connection, sql_create_PROFILE_CONN_HIST_table),dbCreateTable(connection, sql_create_CONNECTION_IP_table),
         dbCreateTable(connection,sql_create_LOBBY_table) if connection is not None else ERR_CATCH(3)
@@ -191,6 +195,8 @@ class ClientHandler:
             lobby_ID=result[0]
             dbAddToTable(connection,'UPDATE LOBBY SET LobbyName=?, LobbyPassword=?, PlayerID2=?, IsOnline=? WHERE PlayerID1=?;',(lobby_name,lobby_password,None,'True',playerID1),'LOBBY')
             LogConnection(cursor,connection,player1,ip,f'''Updated Lobby: {lobby_name}''')
+        self.lobby_ID=lobby_ID
+        self.connection=connection
         game_log=open(str(str(lobby_ID)+'.txt'),'w')
         game_log.write(str('Lobby restarted at: '+str(round(time.time()))+'\n\n'))
         game_log.write('User #'+str(playerID1)+': "'+str(player1)+'" is ready.\n\n')
@@ -201,7 +207,7 @@ class ClientHandler:
             cursor.execute(f'''SELECT PlayerID2 FROM LOBBY WHERE LobbyID="{lobby_ID}"''')
             playerID2=cursor.fetchone()[0] #breaks when player joins
         self.SendData(4,[playerID2,'Game Ready'],False)#OPCODE4 is lobby ready, sends the ID of the opponent
-        self.InGame(lobby_ID,1)
+        self.ManageGame(1)
 
     def JOIN_LOBBY(self,operation,connection,sockname): #ISSUE - MULTIPLE LOBBIES WITH THE SAME USERNAME AND PASSWORD MEAN USERS ONLY JOIN THE FIRST FETCHED LOBBY
         '''The player joining a lobby is the guest, ref player2
@@ -215,10 +221,12 @@ class ClientHandler:
             print('no lobby found with the requested username password that is online')
             return #ends the subroutine
         lobby_ID=result[0]
+        self.lobby_ID=lobby_ID
         cursor.execute(f'''SELECT UUID FROM PROFILE_INFO WHERE username="{player2}"''')
         playerID2=cursor.fetchone()[0]
         print('found lobby with ID ',lobby_ID)
         dbAddToTable(connection,'UPDATE LOBBY SET PlayerID2=? WHERE LobbyID=?;',(playerID2,lobby_ID),'LOBBY')
+        self.connection=connection
         game_log=open(str(str(lobby_ID)+'.txt'),'a')
         game_log.write('User #'+str(playerID2)+': "'+str(player2)+'" is ready.\n\n')
         game_log.write(str('ground'+str(random.randint(1,3))))#line7 is floortype, generates a floortype for the game
@@ -226,15 +234,15 @@ class ClientHandler:
         cursor.execute(f'''SELECT PlayerID1 FROM LOBBY WHERE LobbyID="{lobby_ID}"''')
         playerID1=cursor.fetchone()[0] #gets the host ID
         self.SendData(4,[playerID1,'Game Ready'],False)#OPCODE4 is lobby ready, sends the ID of the opponent
-        self.InGame(lobby_ID,2)
+        self.ManageGame(2)
 
-    def UpdatePlayerVars(self,playernumber):
+    def UpdatePlayerInputs(self,playernumber):
         ''' Starts at both players ready
         '''
         while self.GAME_TIME==True:
             try:
                 info_list=self.RecieveGameInfo()
-                print('info list:',info_list)
+                #print('info list:',info_list)
                 #[Input_Left,Input_Right,Queued_Bullet]
                 if playernumber==1:
                     self.Player1.left_input,self.Player1.right_input,self.Player1.bullet_queued=info_list[0],info_list[1],info_list[2]
@@ -242,46 +250,51 @@ class ClientHandler:
                 elif playernumber==2:
                     self.Player2.left_input,self.Player2.right_input,self.Player2.bullet_queued=info_list[0],info_list[1],info_list[2]#
             except:
-                print()
+                #ERR_CATCH(0)
+                pass
             
 
-    def InGame(self,lobby_ID,player_id):#both connections are in this subroutine, so need to make sure no generation occurs here
+    def ManageGame(self,player_id):#both connections are in this subroutine, so need to make sure no generation occurs here
         '''MAIN
         '''
         self.Player1=Player(0.1,0.6)
         self.Player2=Player(0.8,0.6)
-        game_log=open(str(str(lobby_ID)+'.txt'),'r')#using the text file ensures sync across both instances of server connection
+        game_log=open(str(str(self.lobby_ID)+'.txt'),'r')#using the text file ensures sync across both instances of server connection
         for pos,line in enumerate(game_log): #this for loop finds the 7th line in the file and sets it to var line
             if pos == 6:
-                print('line',pos,'is: ',line)
+                #print('line',pos,'is: ',line)
                 floortype=line
         print('sending ground texture code...')
+        connection=dbConnect('ACCOUNTS')
         self.SendData(5,[floortype,'kill||'],False)#OPCODE5 is type of ground texture to use
+        dbAddToTable(connection,'UPDATE LOBBY SET Player1Data=? WHERE LobbyID=?;',('0.1 0.6',self.lobby_ID),'LOBBY',False)
+        dbAddToTable(connection,'UPDATE LOBBY SET Player2Data=? WHERE LobbyID=?;',('0.8 0.6',self.lobby_ID),'LOBBY',False)
         time.sleep(1)
         self.GAME_TIME=True
-        threading.Thread(target=self.UpdatePlayerVars,args=(player_id,),daemon=True).start()
+        threading.Thread(target=self.UpdatePlayerInputs,args=(player_id,),daemon=True).start()
+        threading.Thread(target=self.UpdateDatabase,args=(player_id,),daemon=True).start()
         while self.GAME_TIME==True:
             #main game updater, sends data to clients
-            playerno=0
-            for player in [self.Player1,self.Player2]:
-                playerno+=1
-                #print('player.left:',player.left_input,'player.right:',player.right_input,'player.velocity:',player.velocity_x,'player.position',player.position_x, self.Player1.position_x, self.Player2.position_x)
-                if int(player.left_input)==1 and int(player.right_input)!=1:
-                    player.velocity_x=-0.001
-                elif int(player.right_input)==1 and int(player.left_input)!=1:
-                    player.velocity_x=0.001
-                elif int(player.right_input)==0 and int(player.left_input)==0:
-                    player.velocity_x=0
-                if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
-                    player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
-                    player.bullet.is_queued=False
-                player.position_x+=player.velocity_x;player.position_y+=player.velocity_y #update the positions of each player
-                player.bullet.position_x+=player.bullet.velocity_x
-                player.bullet.position_y+=player.bullet.velocity_y
-                if playerno==1:
-                    self.Player1=player
-                elif playerno==2:
-                    self.Player2=player
+            player_list=[self.Player1,self.Player2]
+            player=player_list[player_id-1]
+            #print('player.left:',player.left_input,'player.right:',player.right_input,'player.velocity:',player.velocity_x,'player.position',player.position_x, self.Player1.position_x, self.Player2.position_x)
+            if int(player.left_input)==1 and int(player.right_input)!=1:
+                player.velocity_x=-0.0001
+            elif int(player.right_input)==1 and int(player.left_input)!=1:
+                player.velocity_x=0.0001
+            elif int(player.right_input)==0 and int(player.left_input)==0:
+                player.velocity_x=0
+            if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
+                player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
+                player.bullet.is_queued=False
+            player.position_x+=player.velocity_x;player.position_y+=player.velocity_y #update the positions of YOUR PLAYER
+            player.bullet.position_x+=player.bullet.velocity_x
+            player.bullet.position_y+=player.bullet.velocity_y
+                
+            if int(player_id)==1:
+                self.Player1=player #this will be empty if user is p2
+            elif int(player_id)==2:
+                self.Player2=player #this will be empty if user is p1
             self.SendData(6,[
             self.Player1.position_x,
             self.Player1.position_y,
@@ -294,12 +307,33 @@ class ClientHandler:
             'kill||'
             ],False)#OPCODE6 is game data
 
+    def UpdateDatabase(self,player_id):
+        connection=dbConnect('ACCOUNTS')
+        while self.GAME_TIME==True:
+            if int(player_id)==1:
+                #upload player 1 inputs to database host
+                #read player 2 inputs from database and apply to self.player2.left/right
+
+                dbAddToTable(connection,'UPDATE LOBBY SET Player1Data=? WHERE LobbyID=?;',(str(self.Player1.get_position()),self.lobby_ID),'LOBBY',False)
+                cursor=connection.cursor()
+                cursor.execute(f'''SELECT Player2Data FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''') # 
+                result=cursor.fetchone()[0]
+                print('got a player 2 position of ',result)
+                self.Player2.set_position(result)      
+            elif int(player_id)==2:
+                #upload player 2 inputs to database
+                #read player 1 inputs from database and apply to self.player1.left/right
+                dbAddToTable(connection,'UPDATE LOBBY SET Player2Data=? WHERE LobbyID=?;',(str(self.Player2.get_position()),self.lobby_ID),'LOBBY',False)
+                cursor=connection.cursor()
+                cursor.execute(f'''SELECT Player1Data FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''') # 
+                result=cursor.fetchone()[0]
+                self.Player1.set_position(result)
+            print(self.Player1.get_position(),self.Player2.get_position())
 
     def SendData(self,opcode,data_list,recieve=True):
         data=str(opcode)
-        print('sending data', data_list,opcode)
+        #print('sending data', data_list,opcode)
         for item in data_list: data+='||'+str(item) #formatting data to be sent
-        print(data)
         self.socketObject.send(data.encode())
         if recieve==True:
             self.RecieveData()
@@ -308,17 +342,29 @@ class ClientHandler:
         try:
             operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
         except:
-            ERR_CATCH(7)
-        kill_pos=operation.index('kill')
-        operation=operation[:kill_pos]
+            #ERR_CATCH(7)
+            pass
         try:
+            kill_pos=operation.index('kill')
+            operation=operation[:kill_pos]
             while operation[0]!='4':
                 operation=operation[1:len(operation)] #data error, makes sure first value is always the opcode 4
                 recv_opcode=operation[0]
                 #print('recieved data in game',operation)
                 return operation[1:len(operation)]
         except:
-            ERR_CATCH(12)
+            #ERR_CATCH(12)
+            pass
+
+    def OverwriteFileLine(self,line,data):
+        with open(str(str(self.lobby_ID)+'.txt'),'r') as file:
+            lines=file.readlines()
+        while (len(lines)-1)<line:
+            lines.append('')
+        lines[line]=data
+        with open(str(str(self.lobby_ID)+'.txt'),'w') as file:
+            #print('LINES:',lines)
+            file.writelines(lines)    
 
 
 class Player():
@@ -330,6 +376,12 @@ class Player():
         self.position_x=init_position_x
         self.position_y=init_position_y
         self.bullet=Bullet(init_position_x,init_position_y)
+    def get_position(self):#returns the player position variables in a str
+        return str(self.position_x)+' '+str(self.position_y)
+    def set_position(self,input_str):
+        input_str=input_str.split()
+        print('input string:',input_str)
+        self.position_x,self.position_y=float(input_str[0]),float(input_str[1])
 class Bullet():
     def __init__(self,init_x,init_y):
         self.position_x=init_x
