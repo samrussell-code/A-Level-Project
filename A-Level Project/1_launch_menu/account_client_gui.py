@@ -17,7 +17,7 @@ class LaunchWindow(Tk):
         self.geometry('1280x720+0+0')
         self.minsize(640,360)
         self.config(bg='#464646')
-        #self.iconbitmap('assets//jack.ico')
+        self.iconbitmap('imagedata/icon.jpg')
         self.mediumFont=('Calibri Light',15)
         self.inputFont=('Calibri Light',10)
         self.smallFont=('Cambria Math',10)
@@ -48,7 +48,7 @@ class LaunchWindow(Tk):
     def UpdateClient(self,opcode):
         self.ContactServer(opcode)
         operation=self.RECV_DATA()
-        print('updateclient recieved',operation)
+        #print('updateclient recieved',operation)
         if operation[0]=='0': #recieving the server accepting entry 
             self.infoLabel.config(text=operation[1])
             self.usernameEntry.delete(0,'end')
@@ -58,6 +58,8 @@ class LaunchWindow(Tk):
                 res=resStr.split('x')
                 self.destroy()
                 resX,resY=int(res[0]),int(res[1])
+                if resX==0 or resY==0:
+                    resX,resY=1280,720
                 game_window=PygameWindow(resX,resY,self.username,socket.gethostname())
 
     def ContactServer(self,opcode):
@@ -122,6 +124,8 @@ class PygameWindow():
         self.screen=pygame.display.set_mode(self.rect.size)
         self.UIManager=pygame_gui.UIManager((self.screenwidth,self.screenheight))
         pygame.display.set_caption('Tank Game')
+        icon=pygame.image.load('imagedata/icon.jpg')
+        pygame.display.set_icon(icon)
         pygame.mouse.set_visible(1) #the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
         self.imageDict={
         'bullet-idle_1':Image('bullet-idle_1.png','#ffffff',0.025,self.screenwidth,self.screenheight),
@@ -164,7 +168,8 @@ class PygameWindow():
 
         self.SPRITE_RENDER_LIST=[self.background,self.title_object] #every sprite to be rendered should go in this list, sprite on top is end of list.
         self.last_time=0
-        self.input_list=[0,0,0,'kill||']
+        self.input_list=[0,0,0,0,'kill||']
+        #FORMAT A,D,MOUSECOORDINATES,LMB
         self.old_inf=['6', '10', '10', '10', '10', '10', '10', '10', '10']
         self.update()
 
@@ -202,6 +207,15 @@ class PygameWindow():
             return pygame.Rect((round(offsetx*self.screenwidth),round(offsety*self.screenheight)),(-1,-1))
         else:
             return pygame.Rect(round(offsetx*self.screenwidth),round(offsety*self.screenheight),round(sizex*self.screenwidth),round(sizey*self.screenheight))
+    
+    def convert_to_relative_space(self,pos):
+        '''Takes absolute pixel positions, in a tuple, as parameter
+           Returns relative screen space positions, in a tuple
+        '''
+        px,py=pos
+        px/=self.screenwidth
+        py/=self.screenheight
+        return (px,py)
 
     def calculate_delta_time(self):
         ''' Gets the time since window intialised, then subtracts that from the previous call on time, to get the change in time, deltatime, then saves the last call.
@@ -239,7 +253,17 @@ class PygameWindow():
                             self.input_list[0]=0
                         if event.key==pygame.K_d:
                             #print('right up')
-                            self.input_list[1]=0                
+                            self.input_list[1]=0
+                    if event.type==pygame.MOUSEBUTTONDOWN:
+                        if event.button==1:
+                            #print(left mouse down)
+                            self.input_list[2]=self.convert_to_relative_space(pygame.mouse.get_pos())
+                            self.input_list[3]=1
+                    elif event.type==pygame.MOUSEBUTTONUP:
+                        if event.button==1:
+                            #print(left mouse up)
+                            self.input_list[2]=0
+                            self.input_list[3]=0               
                 self.UIManager.process_events(event)
 
     def GAME_START(self): #PLAYER 1 stuff here
@@ -448,7 +472,7 @@ class GameManager():
                 pass
             
            # print(len(self.server_response))#debug
-           # print('recieved',self.server_response)
+            #print('recieved',self.server_response)
             return self.server_response
 
     def SendData(self,data):
