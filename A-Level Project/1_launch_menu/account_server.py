@@ -284,7 +284,9 @@ class ClientHandler:
         self.GAME_TIME=True
         threading.Thread(target=self.UpdatePlayerInputs,args=(player_id,),daemon=True).start()
         threading.Thread(target=self.UpdateDatabase,args=(player_id,),daemon=True).start()
+        deltatime=time.time()
         while self.GAME_TIME==True:
+            deltatime=self.CalculateDeltaTime(deltatime)
             #main game updater, sends data to clients
             #VELOCITY NEEDS TO BE MODIFIED BY A DELTA TIME AS CONNECTION SPEED IS DEPENDANT ON POSITION UPDATES
             player_list=[self.Player1,self.Player2]
@@ -298,13 +300,15 @@ class ClientHandler:
                 player.velocity_x=0
             if int(player.lmb_input)==1 and player.bullet.cooldown==False:
                 threading.Thread(target=player.bullet.BeginCooldown,daemon=True).start()
+                origin_time=time.time()
                 player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
                 player.bullet.velocity,player.bullet.mouse_angle=player.bullet.GetVelocityAngle(player.mousepos,(player.position_x,player.position_y))
             if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
                 player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
                 player.bullet.is_queued=False
             if player.bullet.isMoving==True:
-                player.bullet.GetDisplacement_(player.bullet.velocity,player.bullet.mouse_angle)
+                exist_time=self.CalculateDeltaTime(origin_time)
+                player.bullet.GetDisplacement_(player.bullet.velocity,player.bullet.mouse_angle,exist_time)
             player.position_x+=player.velocity_x;player.position_y+=player.velocity_y #update the positions of YOUR PLAYER
             player.bullet.position_x+=player.bullet.velocity_x
             player.bullet.position_y+=player.bullet.velocity_y
@@ -324,6 +328,10 @@ class ClientHandler:
             self.Player2.bullet.position_y,
             'kill||'
             ],False,),daemon=True).start()
+    def CalculateDeltaTime(self,originaltime):
+        '''Takes a time in seconds as an input, and returns the change in time since the input time, in seconds'''
+        newtime=time.time()
+        return newtime-originaltime
 
     def UpdateDatabase(self,player_id):
         connection=dbConnect('ACCOUNTS')
@@ -442,13 +450,13 @@ class Bullet():
             angle=abs(angle)+180
         elif dY>0 and dX>0: #270 to 360
             angle=90-abs(angle)+270
-        velocity=hypotenuse*(1/100)
+        velocity=hypotenuse*(1/30)
         rprint(velocity,'velocity');rprint(angle,'angle')
         return velocity,angle
     def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
         hMovement=velocity*math.cos(math.radians(angle)) # seperates the magnitudal velocity into its horizontal and vertical components
         vMovement=velocity*math.sin(math.radians(angle))
-        vMovement=-(vMovement)+(((9.81/2)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
+        vMovement=-(vMovement)+(((9.81/300)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
         terminalVelocity=3000
         vMovement=terminalVelocity if vMovement>terminalVelocity else vMovement
         self.position_x,self.position_y=self.UpdatePosition_(self.position_x,self.position_y,hMovement,vMovement)
@@ -459,7 +467,7 @@ class Bullet():
         Returns the updated position if successful, or original position if unsuccessful.
         Also decides if the object should stop moving upon a collision, or if it should bounce.
         '''
-        self.FRAMERATE=60
+        self.FRAMERATE=144
         newpositionx=(horizontal_movement/self.FRAMERATE)+initialpositionx
         newpositiony=(vertical_movement/self.FRAMERATE)+initialpositiony
         if newpositionx<1 and newpositionx>0 and newpositiony<1 and newpositiony>0: #if the updated position is within the bounding box
