@@ -9,6 +9,8 @@
 #example data would be '1' and then, seperately, ['John Smith','password123']. First, tuple[0] is taken and checked against every database username. Return '0' if username is not in database.
 #Return '1' if password does not match correct password.
 #If the username and password are correct, details must be fetched back to fill out variables for the Account client class.
+from distutils.debug import DEBUG
+from distutils.log import debug
 from pickle import TRUE
 import sqlite3, socket, threading, datetime, time, math, random
 from tkinter import END
@@ -123,11 +125,14 @@ def LOGIN_SUCCESS(username,cursor):
     id=result[0][0] #result 0 is everything in this user's row. [0][0] is the id position 0 in the users row.
     print('User',id,'was granted login access')
 
+global DEBUG_MODE
+DEBUG_MODE=False
 def rprint(inp,varname='Variable'):
     '''Debug version of print that prints on a new line with quotes surrounding input.
        Using this to identify implicit type errors
     '''
-    print('\n'+str(varname)+' of type '+str(type(inp))+' :"'+str(inp)+'"\n')
+    if DEBUG_MODE==True:
+        print('\n'+str(varname)+' of type '+str(type(inp))+' :"'+str(inp)+'"\n')
 
 #server stuff
 def NewServer():
@@ -292,11 +297,14 @@ class ClientHandler:
             elif int(player.right_input)==0 and int(player.left_input)==0:
                 player.velocity_x=0
             if int(player.lmb_input)==1 and player.bullet.cooldown==False:
-                player.bullet.velocity,player.bullet.mouse_angle=player.GetVelocityAngle(player.mousepos,(player.position_x,player.position_y))
-                player.bullet.GetDisplacement_(player.bullet.velocity,player.bullet.mouse_angle)
+                threading.Thread(target=player.bullet.BeginCooldown,daemon=True).start()
+                player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
+                player.bullet.velocity,player.bullet.mouse_angle=player.bullet.GetVelocityAngle(player.mousepos,(player.position_x,player.position_y))
             if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
                 player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
                 player.bullet.is_queued=False
+            if player.bullet.isMoving==True:
+                player.bullet.GetDisplacement_(player.bullet.velocity,player.bullet.mouse_angle)
             player.position_x+=player.velocity_x;player.position_y+=player.velocity_y #update the positions of YOUR PLAYER
             player.bullet.position_x+=player.bullet.velocity_x
             player.bullet.position_y+=player.bullet.velocity_y
@@ -397,6 +405,20 @@ class Player():
         #print('input string:',input_str)
         self.position_x,self.position_y=float(input_str[0]),float(input_str[1])
 
+class Bullet():
+    def __init__(self,init_x,init_y):
+        self.position_x=init_x
+        self.position_y=init_y
+        self.velocity_x=0
+        self.velocity_y=0
+        self.velocity=0
+        self.mouse_angle=0
+        self.is_queued=False
+        self.cooldown=False
+        self.isMoving=False
+        self.maximumBounces=4
+        self.bounceNumber=0
+        self.COEFFICIENT_RESTITUTION=0.4
     def GetVelocityAngle(self,forcePosition,objectPosition):
         ''' Takes inputs of two position tuples
 
@@ -404,8 +426,7 @@ class Player():
         '''
         #rprint(forcePosition) #this is a string
         #rprint(objectPosition)
-        self.bullet.position_x,self.bullet.position_y=self.position_x,self.position_y
-        self.bullet.isMoving=True
+        self.isMoving=True
         dY=float(forcePosition[1])-float(objectPosition[1]) #y is inversed so a negative y is upwards and a positive y is downwards
         dX=float(forcePosition[0])-float(objectPosition[0]) #x is not inversed so a negative x is left and positive x is right
         self.xDirection=dX
@@ -421,29 +442,51 @@ class Player():
             angle=abs(angle)+180
         elif dY>0 and dX>0: #270 to 360
             angle=90-abs(angle)+270
-        velocity=hypotenuse*(1/10000)
-        threading.Thread(target=self.bullet.BeginCooldown,daemon=True).start()
+        velocity=hypotenuse*(1/100)
         rprint(velocity,'velocity');rprint(angle,'angle')
         return velocity,angle
-
-class Bullet():
-    def __init__(self,init_x,init_y):
-        self.position_x=init_x
-        self.position_y=init_y
-        self.velocity_x=0
-        self.velocity_y=0
-        self.velocity=0
-        self.mouse_angle=0
-        self.is_queued=False
-        self.cooldown=False
-        self.isMoving=False
     def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
         hMovement=velocity*math.cos(math.radians(angle)) # seperates the magnitudal velocity into its horizontal and vertical components
         vMovement=velocity*math.sin(math.radians(angle))
         vMovement=-(vMovement)+(((9.81/2)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
         terminalVelocity=3000
         vMovement=terminalVelocity if vMovement>terminalVelocity else vMovement
-        self.position_x,self.position_y=self.UpdatePosition_(self.pos,hMovement,vMovement)
+        self.position_x,self.position_y=self.UpdatePosition_(self.position_x,self.position_y,hMovement,vMovement)
+    def UpdatePosition_(self,initialpositionx,initialpositiony,horizontal_movement,vertical_movement): #takes the current position and updates it based on the horizontal and vertical components included
+        '''
+        UpdatePosition_()
+        Takes the current position and updates it based on the horizontal and vertical components also input.
+        Returns the updated position if successful, or original position if unsuccessful.
+        Also decides if the object should stop moving upon a collision, or if it should bounce.
+        '''
+        self.FRAMERATE=60
+        newpositionx=(horizontal_movement/self.FRAMERATE)+initialpositionx
+        newpositiony=(vertical_movement/self.FRAMERATE)+initialpositiony
+        if newpositionx<1 and newpositionx>0 and newpositiony<1 and newpositiony>0: #if the updated position is within the bounding box
+            ignore,angle=self.GetVelocityAngle((newpositionx,newpositiony),(initialpositionx,initialpositiony)) #gets the angle generated from the gradient of the change in positions
+            #self.UpdateRotation_(angle) #updates the objects image to be rotated correctly
+            return newpositionx,newpositiony #returns the new position
+        else:
+            #creating a bounce particle
+            #self.particle.relativePos=self.pos
+            #self.particle.isIdle=False
+            print('particle goes here')
+            
+            if self.bounceNumber>self.maximumBounces: #if the object has already bounced more times than the maximum
+                self.isMoving=False #stops the movement cycle and resets the number of bounces
+                self.bounceNumber=1
+                #self.particle.isIdle=True
+            else: #if the object still needs to bounce
+                self.bounceNumber+=1
+                self.count=0
+                if newpositionx<0 or newpositionx>1: #detects if it is a horizontal bounce
+                    self.bounceNumber=3
+                    self.velocity=-self.velocity #reverses the velocity in while maintaining the angle, essentialy rotating by 180 degrees
+                else:
+                    #self.UpdateRotation_(self.angle) #sets the new rotation to the angle the object hit the floor at
+                    print('update rotation here')
+                self.velocity=self.velocity/(1/self.COEFFICIENT_RESTITUTION) #decreases the new velocity by the restitution coefficient
+            return initialpositionx,initialpositiony
     def BeginCooldown(self):
         self.cooldown=True
         print('cooldown started')
