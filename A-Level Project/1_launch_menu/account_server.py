@@ -123,6 +123,12 @@ def LOGIN_SUCCESS(username,cursor):
     id=result[0][0] #result 0 is everything in this user's row. [0][0] is the id position 0 in the users row.
     print('User',id,'was granted login access')
 
+def rprint(inp,varname='Variable'):
+    '''Debug version of print that prints on a new line with quotes surrounding input.
+       Using this to identify implicit type errors
+    '''
+    print('\n'+str(varname)+' of type '+str(type(inp))+' :"'+str(inp)+'"\n')
+
 #server stuff
 def NewServer():
     server=socket.socket()
@@ -186,7 +192,7 @@ class ClientHandler:
         if result==None:
             dbAddToTable(connection,'INSERT INTO LOBBY (LobbyName,LobbyPassword,PlayerID1,IsOnline) VALUES (?,?,?,?);',(lobby_name,lobby_password,playerID1,'True'),'LOBBY')
             LogConnection(cursor,connection,player1,ip,f'''Created Lobby: {lobby_name}''')
-            cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE PlayerID 1="{playerID1}"''')
+            cursor.execute(f'''SELECT LobbyID FROM LOBBY WHERE PlayerID1="{playerID1}"''')
             result=cursor.fetchone()
             lobby_ID=result[0]
         else:
@@ -241,14 +247,15 @@ class ClientHandler:
         '''
         while self.GAME_TIME==True:
             try:
-                info_list=self.RecieveGameInfo()
+                info_list=self.CollisionCorrectData()
                 #print('info list:',info_list)
                 #[Input_Left,Input_Right,Queued_Bullet]
                 if playernumber==1:
-                    self.Player1.left_input,self.Player1.right_input,self.Player1.mousepos,self.Player1.lmb_input=info_list[0],info_list[1],info_list[2],info_list[3]
+                    self.Player1.left_input,self.Player1.right_input,self.Player1.mousepos,self.Player1.lmb_input=info_list[0],info_list[1],eval(info_list[2]),info_list[3]
+                    #eval is a builtin function that determines the type of the input variable and in this case converts a string to a tuple.
                     #info for player 1 has been collected. in order to communicate this to player 2, and retrieve their data, two instances of clienthandler must communicate externally.
                 elif playernumber==2:
-                    self.Player2.left_input,self.Player2.right_input,self.Player2.mousepos,self.Player2.lmb_input=info_list[0],info_list[1],info_list[2],info_list[3]
+                    self.Player2.left_input,self.Player2.right_input,self.Player2.mousepos,self.Player2.lmb_input=info_list[0],info_list[1],eval(info_list[2]),info_list[3]
             except:
                 #ERR_CATCH(0)
                 pass
@@ -274,17 +281,19 @@ class ClientHandler:
         threading.Thread(target=self.UpdateDatabase,args=(player_id,),daemon=True).start()
         while self.GAME_TIME==True:
             #main game updater, sends data to clients
+            #VELOCITY NEEDS TO BE MODIFIED BY A DELTA TIME AS CONNECTION SPEED IS DEPENDANT ON POSITION UPDATES
             player_list=[self.Player1,self.Player2]
             player=player_list[player_id-1]
             #print('player.left:',player.left_input,'player.right:',player.right_input,'player.velocity:',player.velocity_x,'player.position',player.position_x, self.Player1.position_x, self.Player2.position_x)
             if int(player.left_input)==1 and int(player.right_input)!=1:
-                player.velocity_x=-0.00001
+                player.velocity_x=-0.00005
             elif int(player.right_input)==1 and int(player.left_input)!=1:
-                player.velocity_x=0.00001
+                player.velocity_x=0.00005
             elif int(player.right_input)==0 and int(player.left_input)==0:
                 player.velocity_x=0
-            if int(player.lmb_input)==1:
-                (player.bullet.velocity_x,player.bullet.velocity_y)=player.GetVelocityAngle(player.mousepos,(player.position_x,player.position_y))
+            if int(player.lmb_input)==1 and player.bullet.cooldown==False:
+                player.bullet.velocity,player.bullet.mouse_angle=player.GetVelocityAngle(player.mousepos,(player.position_x,player.position_y))
+                player.bullet.GetDisplacement_(player.bullet.velocity,player.bullet.mouse_angle)
             if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
                 player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
                 player.bullet.is_queued=False
@@ -296,7 +305,7 @@ class ClientHandler:
                 self.Player1=player #this will be empty if user is p2
             elif int(player_id)==2:
                 self.Player2=player #this will be empty if user is p1
-            self.SendData(6,[
+            threading.Thread(target=self.SendData,args=(6,[
             self.Player1.position_x,
             self.Player1.position_y,
             self.Player1.bullet.position_x,
@@ -306,7 +315,7 @@ class ClientHandler:
             self.Player2.bullet.position_x,
             self.Player2.bullet.position_y,
             'kill||'
-            ],False)#OPCODE6 is game data
+            ],False,),daemon=True).start()
 
     def UpdateDatabase(self,player_id):
         connection=dbConnect('ACCOUNTS')
@@ -339,21 +348,21 @@ class ClientHandler:
         if recieve==True:
             self.RecieveData()
         #6||0||0||0||0||kill|| 6||0||0||0||0||kill|| 6||0||0||0||0||kill||S
-    def RecieveGameInfo(self):
+    def CollisionCorrectData(self):
         try:
-            operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
+            operation=(self.socketObject.recv(65536).decode()).split('||')
+             #splits recieved data into a list 
         except:
             #ERR_CATCH(7)
             pass
         try:
             kill_pos=operation.index('kill')
+            #finds the intended final position of the data, and cuts the tail of the list there
             operation=operation[:kill_pos]
-            #print('AFTER KILL POS IS APPLIED: ',operation)
             while operation[0]!='4':
-                operation=operation[1:len(operation)] #data error, makes sure first value is always the opcode 4
-                recv_opcode=operation[0]
-                #print('recieved data in game',operation)
-                return operation[1:len(operation)]
+                #operation=operation[1:len(operation)]
+                operation.pop(0)
+                #pops from position 0 until the head of the list is the opcode
             return operation[1:len(operation)]
         except:
             #ERR_CATCH(12)
@@ -387,16 +396,23 @@ class Player():
         input_str=input_str.split()
         #print('input string:',input_str)
         self.position_x,self.position_y=float(input_str[0]),float(input_str[1])
+
     def GetVelocityAngle(self,forcePosition,objectPosition):
         ''' Takes inputs of two position tuples
 
             Returns the vertical velocity and angle in degrees
         '''
-        dY=forcePosition[1]-objectPosition[1] #y is inversed so a negative y is upwards and a positive y is downwards
-        dX=forcePosition[0]-objectPosition[0] #x is not inversed so a negative x is left and positive x is right
+        #rprint(forcePosition) #this is a string
+        #rprint(objectPosition)
+        self.bullet.position_x,self.bullet.position_y=self.position_x,self.position_y
+        self.bullet.isMoving=True
+        dY=float(forcePosition[1])-float(objectPosition[1]) #y is inversed so a negative y is upwards and a positive y is downwards
+        dX=float(forcePosition[0])-float(objectPosition[0]) #x is not inversed so a negative x is left and positive x is right
         self.xDirection=dX
+        rprint(self.xDirection,'direction')
         hypotenuse=math.sqrt((dY**2)+(dX**2)) #this is always positive
-        angle=math.degrees(math.atan(dY/dX)) if (dX!=0 and hypotenuse>2) else 0 if dX>0 else 180
+        rprint(hypotenuse,'hypotenuse')
+        angle=float(math.degrees(math.atan(dY/dX))) if (dX!=0 and hypotenuse>0.1) else 0 if dX>0 else 180
         if dY<0 and dX>0:#0 to 90
             angle=abs(angle)
         elif dY<0 and dX<0: #90 to 180
@@ -405,16 +421,35 @@ class Player():
             angle=abs(angle)+180
         elif dY>0 and dX>0: #270 to 360
             angle=90-abs(angle)+270
-        velocity=hypotenuse*2.5
+        velocity=hypotenuse*(1/10000)
+        threading.Thread(target=self.bullet.BeginCooldown,daemon=True).start()
+        rprint(velocity,'velocity');rprint(angle,'angle')
         return velocity,angle
+
 class Bullet():
     def __init__(self,init_x,init_y):
         self.position_x=init_x
         self.position_y=init_y
         self.velocity_x=0
         self.velocity_y=0
+        self.velocity=0
         self.mouse_angle=0
         self.is_queued=False
+        self.cooldown=False
+        self.isMoving=False
+    def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
+        hMovement=velocity*math.cos(math.radians(angle)) # seperates the magnitudal velocity into its horizontal and vertical components
+        vMovement=velocity*math.sin(math.radians(angle))
+        vMovement=-(vMovement)+(((9.81/2)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
+        terminalVelocity=3000
+        vMovement=terminalVelocity if vMovement>terminalVelocity else vMovement
+        self.position_x,self.position_y=self.UpdatePosition_(self.pos,hMovement,vMovement)
+    def BeginCooldown(self):
+        self.cooldown=True
+        print('cooldown started')
+        time.sleep(5)
+        self.cooldown=False
+        print('cooldown over')
 
 server=NewServer()
 connections={}

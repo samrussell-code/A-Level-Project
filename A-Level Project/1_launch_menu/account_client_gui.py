@@ -1,8 +1,3 @@
-from ast import Sub, excepthandler
-from cgitb import text
-from msilib.schema import Font
-from re import L
-from turtle import screensize
 from err import ERR_CATCH
 from tkinter import *
 from functools import partial
@@ -17,7 +12,7 @@ class LaunchWindow(Tk):
         self.geometry('1280x720+0+0')
         self.minsize(640,360)
         self.config(bg='#464646')
-        self.iconbitmap('imagedata/icon.jpg')
+        #self.iconbitmap('imagedata/icon.jpg')
         self.mediumFont=('Calibri Light',15)
         self.inputFont=('Calibri Light',10)
         self.smallFont=('Cambria Math',10)
@@ -139,7 +134,8 @@ class PygameWindow():
         'tank3':Image('tank3.png','#ffffff',0.05,self.screenwidth,self.screenheight),        
         'enemytank1':Image('enemytank1.png','#ffffff',0.05,self.screenwidth,self.screenheight),
         'enemytank2':Image('enemytank2.png','#ffffff',0.05,self.screenwidth,self.screenheight),
-        'enemytank3':Image('enemytank3.png','#ffffff',0.05,self.screenwidth,self.screenheight)
+        'enemytank3':Image('enemytank3.png','#ffffff',0.05,self.screenwidth,self.screenheight),
+        'game-background':Image('game-background.png','#ffffff',0.8,self.screenwidth,self.screenheight)
         }
         self.selectAudio={
         'bgamb':pygame.mixer.music.load('mp3/bgamb.mp3'),
@@ -292,6 +288,14 @@ class PygameWindow():
         return (result[0],result[1])
     
     def SpawnPlayers(self,opponentname,playerType=1):
+        print('waiting for ground texture code...')
+        result=self.GameManager.CheckServerResponse()#server now sends out type of ground to use in game
+        background=Sprite(self.screen,self.imageDict['game-background'],True,0.5,0.5)
+        floor=Sprite(self.screen,self.imageDict[result[1]],False,0.5,0.9)
+        self.SPRITE_RENDER_LIST.extend([background,floor])
+        print('ground texture set up complete.')
+        self.selectAudio['bgamb']
+        pygame.mixer.music.play()
         if playerType==1:
             self.bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
             self.opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
@@ -303,14 +307,7 @@ class PygameWindow():
             self.opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
             self.tank=Sprite(self.screen,self.imageDict['tank1'],False,0.8,0.6)
             self.enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.1,0.6)
-            self.SPRITE_RENDER_LIST.extend([self.bullet,self.opponentbullet,self.tank,self.enemytank])
-        print('waiting for ground texture code...')
-        result=self.GameManager.CheckServerResponse()#server now sends out type of ground to use in game
-        floor=Sprite(self.screen,self.imageDict[result[1]],False,0.5,0.9)
-        self.SPRITE_RENDER_LIST.append(floor)
-        print('ground texture set up complete.')
-        self.selectAudio['bgamb']
-        pygame.mixer.music.play()        
+            self.SPRITE_RENDER_LIST.extend([self.bullet,self.opponentbullet,self.tank,self.enemytank])        
         threading.Thread(target=self.PingServer,daemon=True).start()  
         
     def PingServer(self):
