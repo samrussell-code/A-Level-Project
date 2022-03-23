@@ -9,10 +9,8 @@
 #example data would be '1' and then, seperately, ['John Smith','password123']. First, tuple[0] is taken and checked against every database username. Return '0' if username is not in database.
 #Return '1' if password does not match correct password.
 #If the username and password are correct, details must be fetched back to fill out variables for the Account client class.
-import opcode
 from pickle import TRUE
-import random
-import sqlite3, socket, threading, datetime, time
+import sqlite3, socket, threading, datetime, time, math, random
 from tkinter import END
 from err import ERR_CATCH
 
@@ -237,7 +235,9 @@ class ClientHandler:
         self.ManageGame(2)
 
     def UpdatePlayerInputs(self,playernumber):
-        ''' Starts at both players ready
+        ''' Starts at both players ready, loops until game is over
+
+            Stores each value from the client connection input list into the player objects for physics calculations later
         '''
         while self.GAME_TIME==True:
             try:
@@ -245,10 +245,10 @@ class ClientHandler:
                 #print('info list:',info_list)
                 #[Input_Left,Input_Right,Queued_Bullet]
                 if playernumber==1:
-                    self.Player1.left_input,self.Player1.right_input,self.Player1.bullet_queued=info_list[0],info_list[1],info_list[2]
+                    self.Player1.left_input,self.Player1.right_input,self.Player1.mousepos,self.Player1.lmb_input=info_list[0],info_list[1],info_list[2],info_list[3]
                     #info for player 1 has been collected. in order to communicate this to player 2, and retrieve their data, two instances of clienthandler must communicate externally.
                 elif playernumber==2:
-                    self.Player2.left_input,self.Player2.right_input,self.Player2.bullet_queued=info_list[0],info_list[1],info_list[2]#
+                    self.Player2.left_input,self.Player2.right_input,self.Player2.mousepos,self.Player2.lmb_input=info_list[0],info_list[1],info_list[2],info_list[3]
             except:
                 #ERR_CATCH(0)
                 pass
@@ -269,7 +269,6 @@ class ClientHandler:
         self.SendData(5,[floortype,'kill||'],False)#OPCODE5 is type of ground texture to use
         dbAddToTable(connection,'UPDATE LOBBY SET Player1Data=? WHERE LobbyID=?;',('0.1 0.6',self.lobby_ID),'LOBBY',False)
         dbAddToTable(connection,'UPDATE LOBBY SET Player2Data=? WHERE LobbyID=?;',('0.8 0.6',self.lobby_ID),'LOBBY',False)
-        time.sleep(1)
         self.GAME_TIME=True
         threading.Thread(target=self.UpdatePlayerInputs,args=(player_id,),daemon=True).start()
         threading.Thread(target=self.UpdateDatabase,args=(player_id,),daemon=True).start()
@@ -284,6 +283,8 @@ class ClientHandler:
                 player.velocity_x=0.00001
             elif int(player.right_input)==0 and int(player.left_input)==0:
                 player.velocity_x=0
+            if int(player.lmb_input)==1:
+                (player.bullet.velocity_x,player.bullet.velocity_y)=player.GetVelocityAngle(player.mousepos,(player.position_x,player.position_y))
             if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
                 player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
                 player.bullet.is_queued=False
@@ -337,7 +338,7 @@ class ClientHandler:
         self.socketObject.send(data.encode())
         if recieve==True:
             self.RecieveData()
-        #6||0||0||0||0||kill|| 6||0||0||0||0||kill|| 6||0||0||0||0||kill||
+        #6||0||0||0||0||kill|| 6||0||0||0||0||kill|| 6||0||0||0||0||kill||S
     def RecieveGameInfo(self):
         try:
             operation=(self.socketObject.recv(65536).decode()).split('||') #creates a list of the different items in the operation.
@@ -347,11 +348,13 @@ class ClientHandler:
         try:
             kill_pos=operation.index('kill')
             operation=operation[:kill_pos]
+            #print('AFTER KILL POS IS APPLIED: ',operation)
             while operation[0]!='4':
                 operation=operation[1:len(operation)] #data error, makes sure first value is always the opcode 4
                 recv_opcode=operation[0]
                 #print('recieved data in game',operation)
                 return operation[1:len(operation)]
+            return operation[1:len(operation)]
         except:
             #ERR_CATCH(12)
             pass
@@ -375,6 +378,8 @@ class Player():
         self.velocity_y=0
         self.position_x=init_position_x
         self.position_y=init_position_y
+        self.lmb_input=0
+        self.mousepos=(0,0)
         self.bullet=Bullet(init_position_x,init_position_y)
     def get_position(self):#returns the player position variables in a str
         return str(self.position_x)+' '+str(self.position_y)
@@ -382,6 +387,26 @@ class Player():
         input_str=input_str.split()
         #print('input string:',input_str)
         self.position_x,self.position_y=float(input_str[0]),float(input_str[1])
+    def GetVelocityAngle(self,forcePosition,objectPosition):
+        ''' Takes inputs of two position tuples
+
+            Returns the vertical velocity and angle in degrees
+        '''
+        dY=forcePosition[1]-objectPosition[1] #y is inversed so a negative y is upwards and a positive y is downwards
+        dX=forcePosition[0]-objectPosition[0] #x is not inversed so a negative x is left and positive x is right
+        self.xDirection=dX
+        hypotenuse=math.sqrt((dY**2)+(dX**2)) #this is always positive
+        angle=math.degrees(math.atan(dY/dX)) if (dX!=0 and hypotenuse>2) else 0 if dX>0 else 180
+        if dY<0 and dX>0:#0 to 90
+            angle=abs(angle)
+        elif dY<0 and dX<0: #90 to 180
+            angle=90-abs(angle)+90
+        elif dY>0 and dX<0: #180 to 270
+            angle=abs(angle)+180
+        elif dY>0 and dX>0: #270 to 360
+            angle=90-abs(angle)+270
+        velocity=hypotenuse*2.5
+        return velocity,angle
 class Bullet():
     def __init__(self,init_x,init_y):
         self.position_x=init_x
