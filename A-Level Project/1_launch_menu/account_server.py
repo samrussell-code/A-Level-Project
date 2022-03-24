@@ -279,8 +279,8 @@ class ClientHandler:
         print('sending ground texture code...')
         connection=dbConnect('ACCOUNTS')
         self.SendData(5,[floortype,'kill||'],False)#OPCODE5 is type of ground texture to use
-        dbAddToTable(connection,'UPDATE LOBBY SET Player1Data=? WHERE LobbyID=?;',('0.1 0.6 0.1 0.6',self.lobby_ID),'LOBBY',False)
-        dbAddToTable(connection,'UPDATE LOBBY SET Player2Data=? WHERE LobbyID=?;',('0.8 0.6 0.1 0.6',self.lobby_ID),'LOBBY',False)
+        dbAddToTable(connection,'UPDATE LOBBY SET Player1Data=? WHERE LobbyID=?;',('0.1 0.6 0.1 0.6 0',self.lobby_ID),'LOBBY',False)
+        dbAddToTable(connection,'UPDATE LOBBY SET Player2Data=? WHERE LobbyID=?;',('0.8 0.6 0.1 0.6 0',self.lobby_ID),'LOBBY',False)
         self.GAME_TIME=True
         threading.Thread(target=self.UpdatePlayerInputs,args=(player_id,),daemon=True).start()
         threading.Thread(target=self.UpdateDatabase,args=(player_id,),daemon=True).start()
@@ -295,6 +295,8 @@ class ClientHandler:
             self.Player2.position_y,
             self.Player2.bullet.position_x,
             self.Player2.bullet.position_y,
+            self.Player1.bullet.angle,
+            self.Player2.bullet.angle,
             'kill||'
             ],False,),daemon=True).start()
     def PhysicsUpdate(self,player_id):
@@ -414,7 +416,7 @@ class Player():
         self.mousepos=(0,0)
         self.bullet=Bullet(init_position_x,init_position_y)
     def get_position(self):#returns the player position variables in a str
-        return str(self.position_x)+' '+str(self.position_y)+'  '+str(self.bullet.position_x)+' '+str(self.bullet.position_y)
+        return str(self.position_x)+' '+str(self.position_y)+'  '+str(self.bullet.position_x)+' '+str(self.bullet.position_y)+' '+str(self.bullet.angle)
     def set_position(self,input_str):
         input_str=input_str.split()
         #rprint(input_str,'input string')
@@ -432,6 +434,7 @@ class Bullet():
         self.isMoving=False
         self.maximumBounces=4
         self.bounceNumber=0
+        self.angle=0
         self.COEFFICIENT_RESTITUTION=0.7
     def GetVelocityAngle(self,forcePosition,objectPosition):
         ''' Takes inputs of two position tuples
@@ -446,8 +449,8 @@ class Bullet():
         self.xDirection=dX
         #rprint(self.xDirection,'direction')
         hypotenuse=math.sqrt((dY**2)+(dX**2)) #this is always positive
-        #rprint(hypotenuse,'hypotenuse')
-        angle=float(math.degrees(math.atan(dY/dX))) if (dX!=0 and hypotenuse>0.1) else 0 if dX>0 else 180
+        rprint(hypotenuse,'hypotenuse');rprint(dX,'dX')
+        angle=float(math.degrees(math.atan(dY/dX))) if (dX!=0 and hypotenuse>0.001) else 0 if dX>0 else 180
         if dY<0 and dX>0:#0 to 90
             angle=abs(angle)
         elif dY<0 and dX<0: #90 to 180
@@ -458,6 +461,7 @@ class Bullet():
             angle=90-abs(angle)+270
         velocity=hypotenuse*(5)
         #rprint(velocity,'velocity');rprint(angle,'angle')
+        self.angle=angle
         return velocity,angle
     def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
         hMovement=velocity*math.cos(math.radians(angle)) # seperates the magnitudal velocity into its horizontal and vertical components

@@ -4,7 +4,7 @@ from functools import partial
 from cryptography.hazmat.primitives import hashes
 import socket, threading, pygame, pygame_gui
 global DEBUG_MODE
-DEBUG_MODE=False
+DEBUG_MODE=True
 def rprint(inp,varname='Variable'):
     '''Debug version of print that prints on a new line with quotes surrounding input.
        Using this to identify implicit type errors
@@ -188,10 +188,11 @@ class PygameWindow():
 
             if self.GAME_START==True:
                 #e.g.['6', '0', '0', '0', '0', '0', '0', '0', '0']
-                if len(self.GameManager.server_response)==9: #if no data has collided
+                #p1px,p1py,p1bpx,p1bpy,p2px,p2py,p2bpx,p2bpy,p1ba,p2ba
+                if len(self.GameManager.server_response)==11: #if no data has collided
                     inf=self.GameManager.server_response
                     self.old_inf=inf
-                    rprint(self.GameManager.server_response,'server response')
+                    #rprint(self.GameManager.server_response,'server response')
                 else: #data collision avoidance
                     inf=self.old_inf
                 #print('inf:',inf)
@@ -204,6 +205,8 @@ class PygameWindow():
                 #print('NEW ENEMYTANK PX/PY',self.enemytank.pX,self.enemytank.pY)
                 self.opponentbullet.RefreshPosition(inf[7],inf[8])
                 #print('NEW OPPONENTBULLET PX/PY',self.opponentbullet.pX,self.opponentbullet.pY)
+                if inf[9]!=self.bullet.angle:   self.bullet.UpdateRotation_(inf[9])
+                if inf[10]!= self.opponentbullet.angle:     self.opponentbullet.UpdateRotation_(inf[10])
 
           
 
@@ -316,7 +319,8 @@ class PygameWindow():
             self.opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
             self.tank=Sprite(self.screen,self.imageDict['tank1'],False,0.8,0.6)
             self.enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.1,0.6)
-            self.SPRITE_RENDER_LIST.extend([self.bullet,self.opponentbullet,self.tank,self.enemytank])        
+            self.SPRITE_RENDER_LIST.extend([self.bullet,self.opponentbullet,self.tank,self.enemytank])     
+        self.bullet.collider.ShowCollisions();self.opponentbullet.collider.ShowCollisions()
         threading.Thread(target=self.PingServer,daemon=True).start()  
         
     def PingServer(self):
@@ -389,12 +393,20 @@ class Sprite():
         self.screen.blit(self.image,(self.pX,self.pY))
         self.animations={}
         self.isCollider=isCollider
+        self.angle=0
+        self.rect=self.image.get_rect()
         #print('sprite of :',self.image,self.pX,self.pY)
         if self.image!=None and isCollider==False:
             self.collider=BoundingBox(self.screen,self.imagewidth,self.imageheight,self.pX,self.pY,False)
     def RefreshPosition(self,iX,iY):
         self.pX=(float(iX)*self.screen.get_width())-(self.imagewidth/2)
         self.pY=(float(iY)*self.screen.get_height())-(self.imageheight/2)
+    def UpdateRotation_(self,angle):
+        originalImage=self.image #saves the previous image so that image degradation doesnt occur while image is rotating
+        self.image=pygame.transform.rotate(originalImage,round(float(angle))) #sets the new image to a copy of the original image at a different angle
+        x,y=self.rect.center
+        self.rect=self.image.get_rect()
+        self.rect.center=(x,y) #makes sure the image is still centered in the correct position
 
 class BoundingBox():
     '''Class that handles all collisions, used by the Sprite class.
