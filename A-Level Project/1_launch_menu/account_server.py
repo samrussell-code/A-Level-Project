@@ -126,7 +126,7 @@ def LOGIN_SUCCESS(username,cursor):
     print('User',id,'was granted login access')
 
 global DEBUG_MODE
-DEBUG_MODE=False
+DEBUG_MODE=True
 def rprint(inp,varname='Variable'):
     '''Debug version of print that prints on a new line with quotes surrounding input.
        Using this to identify implicit type errors
@@ -207,7 +207,7 @@ class ClientHandler:
         self.lobby_ID=lobby_ID
         self.connection=connection
         game_log=open(str(str(lobby_ID)+'.txt'),'w')
-        game_log.write(str('Lobby restarted at: '+str(round(time.time()))+'\n\n'))
+        game_log.write(str('Lobby restarted at: '+str(round(time.perf_counter()))+'\n\n'))
         game_log.write('User #'+str(playerID1)+': "'+str(player1)+'" is ready.\n\n')
         game_log.close()
         #now wait until player 2 has joined in the database, by checking the database until a result is found
@@ -279,28 +279,28 @@ class ClientHandler:
         print('sending ground texture code...')
         connection=dbConnect('ACCOUNTS')
         self.SendData(5,[floortype,'kill||'],False)#OPCODE5 is type of ground texture to use
-        dbAddToTable(connection,'UPDATE LOBBY SET Player1Data=? WHERE LobbyID=?;',('0.1 0.6',self.lobby_ID),'LOBBY',False)
-        dbAddToTable(connection,'UPDATE LOBBY SET Player2Data=? WHERE LobbyID=?;',('0.8 0.6',self.lobby_ID),'LOBBY',False)
+        dbAddToTable(connection,'UPDATE LOBBY SET Player1Data=? WHERE LobbyID=?;',('0.1 0.6 0.1 0.6',self.lobby_ID),'LOBBY',False)
+        dbAddToTable(connection,'UPDATE LOBBY SET Player2Data=? WHERE LobbyID=?;',('0.8 0.6 0.1 0.6',self.lobby_ID),'LOBBY',False)
         self.GAME_TIME=True
         threading.Thread(target=self.UpdatePlayerInputs,args=(player_id,),daemon=True).start()
         threading.Thread(target=self.UpdateDatabase,args=(player_id,),daemon=True).start()
-        deltatime=time.time()
+        deltatime=time.perf_counter()
         while self.GAME_TIME==True:
-            deltatime=self.CalculateDeltaTime(deltatime)
+            clocktime=time.perf_counter()
             #main game updater, sends data to clients
             #VELOCITY NEEDS TO BE MODIFIED BY A DELTA TIME AS CONNECTION SPEED IS DEPENDANT ON POSITION UPDATES
             player_list=[self.Player1,self.Player2]
             player=player_list[player_id-1]
             #print('player.left:',player.left_input,'player.right:',player.right_input,'player.velocity:',player.velocity_x,'player.position',player.position_x, self.Player1.position_x, self.Player2.position_x)
             if int(player.left_input)==1 and int(player.right_input)!=1:
-                player.velocity_x=-0.00005
+                player.velocity_x=-5
             elif int(player.right_input)==1 and int(player.left_input)!=1:
-                player.velocity_x=0.00005
+                player.velocity_x=5
             elif int(player.right_input)==0 and int(player.left_input)==0:
                 player.velocity_x=0
             if int(player.lmb_input)==1 and player.bullet.cooldown==False:
                 threading.Thread(target=player.bullet.BeginCooldown,daemon=True).start()
-                origin_time=time.time()
+                origin_time=time.perf_counter()
                 player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
                 player.bullet.velocity,player.bullet.mouse_angle=player.bullet.GetVelocityAngle(player.mousepos,(player.position_x,player.position_y))
             if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
@@ -309,9 +309,14 @@ class ClientHandler:
             if player.bullet.isMoving==True:
                 exist_time=self.CalculateDeltaTime(origin_time)
                 player.bullet.GetDisplacement_(player.bullet.velocity,player.bullet.mouse_angle,exist_time)
-            player.position_x+=player.velocity_x;player.position_y+=player.velocity_y #update the positions of YOUR PLAYER
-            player.bullet.position_x+=player.bullet.velocity_x
-            player.bullet.position_y+=player.bullet.velocity_y
+            player.position_x+=(player.velocity_x*deltatime)
+            player.position_y+=(player.velocity_y*deltatime) #update the positions of YOUR PLAYER
+            player.bullet.position_x+=(player.bullet.velocity_x*deltatime)
+            player.bullet.position_y+=(player.bullet.velocity_y*deltatime)
+            #print('CLOCKTIME',clocktime,'TIME',time.perf_counter(),'CHANGE IN TIME',deltatime)
+            deltatime=self.CalculateDeltaTime(clocktime)
+            #while deltatime==0.0: deltatime=self.CalculateDeltaTime(clocktime); print(deltatime)
+            #rprint(deltatime,'deltatime')
                 
             if int(player_id)==1:
                 self.Player1=player #this will be empty if user is p2
@@ -330,8 +335,8 @@ class ClientHandler:
             ],False,),daemon=True).start()
     def CalculateDeltaTime(self,originaltime):
         '''Takes a time in seconds as an input, and returns the change in time since the input time, in seconds'''
-        newtime=time.time()
-        return newtime-originaltime
+        newtime=time.perf_counter()
+        return newtime-float(originaltime)
 
     def UpdateDatabase(self,player_id):
         connection=dbConnect('ACCOUNTS')
@@ -344,6 +349,7 @@ class ClientHandler:
                 cursor=connection.cursor()
                 cursor.execute(f'''SELECT Player2Data FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''') # 
                 result=cursor.fetchone()[0]
+                #rprint(result,'result')
                 #print('got a player 2 position of ',result)
                 self.Player2.set_position(result)      
             elif int(player_id)==2:
@@ -407,11 +413,11 @@ class Player():
         self.mousepos=(0,0)
         self.bullet=Bullet(init_position_x,init_position_y)
     def get_position(self):#returns the player position variables in a str
-        return str(self.position_x)+' '+str(self.position_y)
+        return str(self.position_x)+' '+str(self.position_y)+'  '+str(self.bullet.position_x)+' '+str(self.bullet.position_y)
     def set_position(self,input_str):
         input_str=input_str.split()
-        #print('input string:',input_str)
-        self.position_x,self.position_y=float(input_str[0]),float(input_str[1])
+        #rprint(input_str,'input string')
+        self.position_x,self.position_y,self.bullet.position_x,self.bullet.position_y=float(input_str[0]),float(input_str[1]),float(input_str[2]),float(input_str[3])
 
 class Bullet():
     def __init__(self,init_x,init_y):
@@ -426,7 +432,7 @@ class Bullet():
         self.isMoving=False
         self.maximumBounces=4
         self.bounceNumber=0
-        self.COEFFICIENT_RESTITUTION=0.4
+        self.COEFFICIENT_RESTITUTION=0.7
     def GetVelocityAngle(self,forcePosition,objectPosition):
         ''' Takes inputs of two position tuples
 
@@ -438,9 +444,9 @@ class Bullet():
         dY=float(forcePosition[1])-float(objectPosition[1]) #y is inversed so a negative y is upwards and a positive y is downwards
         dX=float(forcePosition[0])-float(objectPosition[0]) #x is not inversed so a negative x is left and positive x is right
         self.xDirection=dX
-        rprint(self.xDirection,'direction')
+        #rprint(self.xDirection,'direction')
         hypotenuse=math.sqrt((dY**2)+(dX**2)) #this is always positive
-        rprint(hypotenuse,'hypotenuse')
+        #rprint(hypotenuse,'hypotenuse')
         angle=float(math.degrees(math.atan(dY/dX))) if (dX!=0 and hypotenuse>0.1) else 0 if dX>0 else 180
         if dY<0 and dX>0:#0 to 90
             angle=abs(angle)
@@ -450,13 +456,13 @@ class Bullet():
             angle=abs(angle)+180
         elif dY>0 and dX>0: #270 to 360
             angle=90-abs(angle)+270
-        velocity=hypotenuse*(1/30)
-        rprint(velocity,'velocity');rprint(angle,'angle')
+        velocity=hypotenuse*(1/10)
+        #rprint(velocity,'velocity');rprint(angle,'angle')
         return velocity,angle
     def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
         hMovement=velocity*math.cos(math.radians(angle)) # seperates the magnitudal velocity into its horizontal and vertical components
         vMovement=velocity*math.sin(math.radians(angle))
-        vMovement=-(vMovement)+(((9.81/300)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
+        vMovement=-(vMovement)+(((9.81/150)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
         terminalVelocity=3000
         vMovement=terminalVelocity if vMovement>terminalVelocity else vMovement
         self.position_x,self.position_y=self.UpdatePosition_(self.position_x,self.position_y,hMovement,vMovement)
@@ -478,7 +484,7 @@ class Bullet():
             #creating a bounce particle
             #self.particle.relativePos=self.pos
             #self.particle.isIdle=False
-            print('particle goes here')
+            #print('particle goes here')
             
             if self.bounceNumber>self.maximumBounces: #if the object has already bounced more times than the maximum
                 self.isMoving=False #stops the movement cycle and resets the number of bounces
@@ -492,13 +498,14 @@ class Bullet():
                     self.velocity=-self.velocity #reverses the velocity in while maintaining the angle, essentialy rotating by 180 degrees
                 else:
                     #self.UpdateRotation_(self.angle) #sets the new rotation to the angle the object hit the floor at
-                    print('update rotation here')
+                    #print('update rotation here')
+                    pass
                 self.velocity=self.velocity/(1/self.COEFFICIENT_RESTITUTION) #decreases the new velocity by the restitution coefficient
             return initialpositionx,initialpositiony
     def BeginCooldown(self):
         self.cooldown=True
         print('cooldown started')
-        time.sleep(5)
+        time.sleep(3)
         self.cooldown=False
         print('cooldown over')
 

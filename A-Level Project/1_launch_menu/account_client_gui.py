@@ -3,6 +3,14 @@ from tkinter import *
 from functools import partial
 from cryptography.hazmat.primitives import hashes
 import socket, threading, pygame, pygame_gui
+global DEBUG_MODE
+DEBUG_MODE=False
+def rprint(inp,varname='Variable'):
+    '''Debug version of print that prints on a new line with quotes surrounding input.
+       Using this to identify implicit type errors
+    '''
+    if DEBUG_MODE==True:
+        print('\n'+str(varname)+' of type '+str(type(inp))+' :"'+str(inp)+'"\n')
 
 class LaunchWindow(Tk):
     def __init__(self):
@@ -123,7 +131,7 @@ class PygameWindow():
         pygame.display.set_icon(icon)
         pygame.mouse.set_visible(1) #the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
         self.imageDict={
-        'bullet-idle_1':Image('bullet-idle_1.png','#ffffff',0.025,self.screenwidth,self.screenheight),
+        'bullet-idle_1':Image('bullet-idle_1.png','#ffffff',0.01,self.screenwidth,self.screenheight),
         'menu_background':Image('menu_background.png',None,1,self.screenwidth,self.screenheight),
         'menu_title':Image('menu_title.png','#ffffff',0.3,self.screenwidth,self.screenheight),
         'ground1':Image('ground1.png',None,0.25,self.screenwidth,self.screenheight),
@@ -131,7 +139,7 @@ class PygameWindow():
         'ground3':Image('ground3.png',None,0.25,self.screenwidth,self.screenheight),
         'tank1':Image('tank1.png','#ffffff',0.05,self.screenwidth,self.screenheight),
         'tank2':Image('tank2.png','#ffffff',0.05,self.screenwidth,self.screenheight),
-        'tank3':Image('tank3.png','#ffffff',0.05,self.screenwidth,self.screenheight),        
+        'tank3':Image('tank3.png','#ffffff',0.05,self.screenwidth,self.screenheight),
         'enemytank1':Image('enemytank1.png','#ffffff',0.05,self.screenwidth,self.screenheight),
         'enemytank2':Image('enemytank2.png','#ffffff',0.05,self.screenwidth,self.screenheight),
         'enemytank3':Image('enemytank3.png','#ffffff',0.05,self.screenwidth,self.screenheight),
@@ -183,6 +191,7 @@ class PygameWindow():
                 if len(self.GameManager.server_response)==9: #if no data has collided
                     inf=self.GameManager.server_response
                     self.old_inf=inf
+                    rprint(self.GameManager.server_response,'server response')
                 else: #data collision avoidance
                     inf=self.old_inf
                 #print('inf:',inf)
