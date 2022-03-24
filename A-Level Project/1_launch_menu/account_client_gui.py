@@ -1,3 +1,4 @@
+import time
 from err import ERR_CATCH
 from tkinter import *
 from functools import partial
@@ -205,8 +206,8 @@ class PygameWindow():
                 #print('NEW ENEMYTANK PX/PY',self.enemytank.pX,self.enemytank.pY)
                 self.opponentbullet.RefreshPosition(inf[7],inf[8])
                 #print('NEW OPPONENTBULLET PX/PY',self.opponentbullet.pX,self.opponentbullet.pY)
-                if inf[9]!=self.bullet.angle:   self.bullet.UpdateRotation_(inf[9])
-                if inf[10]!= self.opponentbullet.angle:     self.opponentbullet.UpdateRotation_(inf[10])
+                if inf[9]!=self.bullet.angle:   threading.Thread(target=self.bullet.UpdateRotation_,args=(inf[9],),daemon=True).start()
+                if inf[10]!= self.opponentbullet.angle:     threading.Thread(target=self.opponentbullet.UpdateRotation_,args=(inf[10],),daemon=True).start()
 
           
 
@@ -403,7 +404,7 @@ class Sprite():
         self.pY=(float(iY)*self.screen.get_height())-(self.imageheight/2)
     def UpdateRotation_(self,angle):
         originalImage=self.image #saves the previous image so that image degradation doesnt occur while image is rotating
-        self.image=pygame.transform.rotate(originalImage,round(float(angle))) #sets the new image to a copy of the original image at a different angle
+        #self.image=pygame.transform.rotate(originalImage,round(float(angle))) #sets the new image to a copy of the original image at a different angle
         x,y=self.rect.center
         self.rect=self.image.get_rect()
         self.rect.center=(x,y) #makes sure the image is still centered in the correct position
