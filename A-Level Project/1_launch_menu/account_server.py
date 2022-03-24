@@ -284,44 +284,8 @@ class ClientHandler:
         self.GAME_TIME=True
         threading.Thread(target=self.UpdatePlayerInputs,args=(player_id,),daemon=True).start()
         threading.Thread(target=self.UpdateDatabase,args=(player_id,),daemon=True).start()
-        deltatime=time.perf_counter()
+        threading.Thread(target=self.PhysicsUpdate,args=(player_id,),daemon=True).start()
         while self.GAME_TIME==True:
-            clocktime=time.perf_counter()
-            #main game updater, sends data to clients
-            #VELOCITY NEEDS TO BE MODIFIED BY A DELTA TIME AS CONNECTION SPEED IS DEPENDANT ON POSITION UPDATES
-            player_list=[self.Player1,self.Player2]
-            player=player_list[player_id-1]
-            #print('player.left:',player.left_input,'player.right:',player.right_input,'player.velocity:',player.velocity_x,'player.position',player.position_x, self.Player1.position_x, self.Player2.position_x)
-            if int(player.left_input)==1 and int(player.right_input)!=1:
-                player.velocity_x=-5
-            elif int(player.right_input)==1 and int(player.left_input)!=1:
-                player.velocity_x=5
-            elif int(player.right_input)==0 and int(player.left_input)==0:
-                player.velocity_x=0
-            if int(player.lmb_input)==1 and player.bullet.cooldown==False:
-                threading.Thread(target=player.bullet.BeginCooldown,daemon=True).start()
-                origin_time=time.perf_counter()
-                player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
-                player.bullet.velocity,player.bullet.mouse_angle=player.bullet.GetVelocityAngle(player.mousepos,(player.position_x,player.position_y))
-            if player.bullet.is_queued==True: #if bullet is waiting to be fired, place it in the same position as the player
-                player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
-                player.bullet.is_queued=False
-            if player.bullet.isMoving==True:
-                exist_time=self.CalculateDeltaTime(origin_time)
-                player.bullet.GetDisplacement_(player.bullet.velocity,player.bullet.mouse_angle,exist_time)
-            player.position_x+=(player.velocity_x*deltatime)
-            player.position_y+=(player.velocity_y*deltatime) #update the positions of YOUR PLAYER
-            player.bullet.position_x+=(player.bullet.velocity_x*deltatime)
-            player.bullet.position_y+=(player.bullet.velocity_y*deltatime)
-            #print('CLOCKTIME',clocktime,'TIME',time.perf_counter(),'CHANGE IN TIME',deltatime)
-            deltatime=self.CalculateDeltaTime(clocktime)
-            #while deltatime==0.0: deltatime=self.CalculateDeltaTime(clocktime); print(deltatime)
-            #rprint(deltatime,'deltatime')
-                
-            if int(player_id)==1:
-                self.Player1=player #this will be empty if user is p2
-            elif int(player_id)==2:
-                self.Player2=player #this will be empty if user is p1
             threading.Thread(target=self.SendData,args=(6,[
             self.Player1.position_x,
             self.Player1.position_y,
@@ -333,6 +297,43 @@ class ClientHandler:
             self.Player2.bullet.position_y,
             'kill||'
             ],False,),daemon=True).start()
+    def PhysicsUpdate(self,player_id):
+        deltatime=time.perf_counter()
+        while self.GAME_TIME==True:
+            clocktime=time.perf_counter()
+            #main game updater, sends data to clients
+            #VELOCITY NEEDS TO BE MODIFIED BY A DELTA TIME AS CONNECTION SPEED IS DEPENDANT ON POSITION UPDATES
+            player_list=[self.Player1,self.Player2]
+            player=player_list[player_id-1]
+            #print('player.left:',player.left_input,'player.right:',player.right_input,'player.velocity:',player.velocity_x,'player.position',player.position_x, self.Player1.position_x, self.Player2.position_x)
+            if int(player.left_input)==1 and int(player.right_input)!=1:
+                player.velocity_x=-0.25
+            elif int(player.right_input)==1 and int(player.left_input)!=1:
+                player.velocity_x=0.25
+            elif int(player.right_input)==0 and int(player.left_input)==0:
+                player.velocity_x=0
+            if int(player.lmb_input)==1 and player.bullet.cooldown==False:
+                threading.Thread(target=player.bullet.BeginCooldown,daemon=True).start()
+                origin_time=time.perf_counter()
+                player.bullet.position_x,player.bullet.position_y=player.position_x,player.position_y
+                player.bullet.velocity,player.bullet.mouse_angle=player.bullet.GetVelocityAngle(player.mousepos,(player.position_x,player.position_y))
+            if player.bullet.isMoving==True:
+                exist_time=self.CalculateDeltaTime(origin_time)
+                player.bullet.GetDisplacement_(player.bullet.velocity,player.bullet.mouse_angle,exist_time)
+            player.position_x+=(player.velocity_x*deltatime)
+            player.position_y+=(player.velocity_y*deltatime) #update the positions of YOUR PLAYER
+            #print('CLOCKTIME',clocktime,'TIME',time.perf_counter(),'CHANGE IN TIME',deltatime)
+            deltatime=self.CalculateDeltaTime(clocktime)
+            #while deltatime==0.0: deltatime=self.CalculateDeltaTime(clocktime); print(deltatime)
+            #rprint(player.velocity_x*deltatime,'deltatime')
+            #rprint(deltatime,'deltatime')
+            while deltatime<(1/60):
+                time.sleep(0.001)
+                deltatime=self.CalculateDeltaTime(clocktime)
+            if int(player_id)==1:
+                self.Player1=player #this will be empty if user is p2
+            elif int(player_id)==2:
+                self.Player2=player #this will be empty if user is p1
     def CalculateDeltaTime(self,originaltime):
         '''Takes a time in seconds as an input, and returns the change in time since the input time, in seconds'''
         newtime=time.perf_counter()
@@ -427,7 +428,6 @@ class Bullet():
         self.velocity_y=0
         self.velocity=0
         self.mouse_angle=0
-        self.is_queued=False
         self.cooldown=False
         self.isMoving=False
         self.maximumBounces=4
@@ -456,13 +456,13 @@ class Bullet():
             angle=abs(angle)+180
         elif dY>0 and dX>0: #270 to 360
             angle=90-abs(angle)+270
-        velocity=hypotenuse*(1/10)
+        velocity=hypotenuse*(5)
         #rprint(velocity,'velocity');rprint(angle,'angle')
         return velocity,angle
     def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
         hMovement=velocity*math.cos(math.radians(angle)) # seperates the magnitudal velocity into its horizontal and vertical components
         vMovement=velocity*math.sin(math.radians(angle))
-        vMovement=-(vMovement)+(((9.81/150)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
+        vMovement=-(vMovement)+(((9.81)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
         terminalVelocity=3000
         vMovement=terminalVelocity if vMovement>terminalVelocity else vMovement
         self.position_x,self.position_y=self.UpdatePosition_(self.position_x,self.position_y,hMovement,vMovement)
