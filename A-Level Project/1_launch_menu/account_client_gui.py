@@ -312,14 +312,14 @@ class PygameWindow():
         if playerType==1:
             self.bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
             self.opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
-            self.tank=Sprite(self.screen,self.imageDict['tank1'],False,0.1,0.6)
-            self.enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.8,0.6)
+            self.tank=Tank(self.screen,self.imageDict['tank1'],False,0.1,0.6)
+            self.enemytank=Tank(self.screen,self.imageDict['enemytank1'],False,0.8,0.6)
             self.SPRITE_RENDER_LIST.extend([self.bullet,self.opponentbullet,self.tank,self.enemytank])
         elif playerType==2:
             self.bullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.8,0.6)
             self.opponentbullet=Sprite(self.screen,self.imageDict['bullet-idle_1'],False,0.1,0.6)
-            self.tank=Sprite(self.screen,self.imageDict['tank1'],False,0.8,0.6)
-            self.enemytank=Sprite(self.screen,self.imageDict['enemytank1'],False,0.1,0.6)
+            self.tank=Tank(self.screen,self.imageDict['tank1'],False,0.8,0.6)
+            self.enemytank=Tank(self.screen,self.imageDict['enemytank1'],False,0.1,0.6)
             self.SPRITE_RENDER_LIST.extend([self.bullet,self.opponentbullet,self.tank,self.enemytank])     
         self.bullet.collider.ShowCollisions();self.opponentbullet.collider.ShowCollisions()
         threading.Thread(target=self.PingServer,daemon=True).start()  
@@ -409,6 +409,11 @@ class Sprite():
         self.rect=self.image.get_rect()
         self.rect.center=(x,y) #makes sure the image is still centered in the correct position
 
+class Tank(Sprite):
+    def __init__(self, screen, image=None, isCollider=False, pivotX=0, pivotY=0):
+        super().__init__(screen, image, isCollider, pivotX, pivotY)
+        self.health=-1
+        
 class BoundingBox():
     '''Class that handles all collisions, used by the Sprite class.
     '''
