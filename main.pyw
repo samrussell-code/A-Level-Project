@@ -21,7 +21,7 @@ class LaunchWindow(Tk):
         self.geometry('1280x720+0+0')
         self.minsize(640,360)
         self.config(bg='#464646')
-        #self.iconbitmap('imagedata/icon.jpg')
+        self.iconbitmap('imagedata/icon.jpg')
         self.mediumFont=('Calibri Light',15)
         self.inputFont=('Calibri Light',10)
         self.smallFont=('Cambria Math',10)
@@ -157,7 +157,7 @@ class PygameWindow():
         '300 0 -0.1', #syntax FRAMES X_update Y_update
         '500 0 0',
         '300 0 0.1',
-        '500 0 0'])})# creates a simple motion animation called bounce, for the foreground sprite.
+        '500 0 0'],self.title_object.pX,self.title_object.pY)})# creates a simple motion animation called bounce, for the foreground sprite.
         
         create_button_layout=self.button_layout(0.1,0.4,0.2,0.1,False)
         self.create_button=pygame_gui.elements.UIButton(relative_rect=create_button_layout,text='Create Lobby',manager=self.UIManager) #these rects have set sizes
@@ -338,6 +338,8 @@ class PygameWindow():
         pygame.draw.rect(self.screen,(255,255,255),pygame.Rect(0,0,self.screenwidth,self.screenheight))
         for sprite in self.SPRITE_RENDER_LIST:
             for animation in sprite.animations.values(): #updates every animation, for every sprite
+                if animation.current_instruction==0 and animation.instruction_progress==0:
+                    sprite.pX,sprite.pY=animation.initial_position
                 update_x,update_y=animation.UpdateAnimation(self.deltatime)
                 sprite.pX+=(update_x*self.deltatime)
                 sprite.pY+=(update_y*self.deltatime)
@@ -429,13 +431,14 @@ class BoundingBox():
         self.screen.blit(self.surface,(self.topLeft[0],self.topLeft[1]))
 
 class VectorAnimation():
-    def __init__(self,instructions):
+    def __init__(self,instructions,x=0,y=0):
         self.tick=0
         self.current_instruction=0
         self.instruction_progress=0
         self.instructions=instructions
         self.total_instructions=len(self.instructions)-1
         self.instruction_duration=int((self.instructions[self.current_instruction]).split(' ')[0])
+        self.initial_position=x,y
     #FIX THIS - take the original position of the object before the animation, so the object can reset position on loop
     def UpdateAnimation(self,deltatime):
         '''
