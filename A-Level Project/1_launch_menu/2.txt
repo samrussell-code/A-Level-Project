@@ -1,7 +1,0 @@
-Lobby restarted at: 12
-
-User #9: "`" is ready.
-
-User #10: "4" is ready.
-
-ground3
