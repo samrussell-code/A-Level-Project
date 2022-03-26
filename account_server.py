@@ -236,7 +236,7 @@ class ClientHandler:
         print('found lobby with ID ',lobby_ID)
         dbAddToTable(connection,'UPDATE LOBBY SET PlayerID2=? WHERE LobbyID=?;',(playerID2,lobby_ID),'LOBBY')
         self.connection=connection
-        game_log=open(str(str(lobby_ID)+'.txt'),'a')
+        game_log=open(str('log/'+str(lobby_ID)+'.txt'),'a')
         game_log.write('User #'+str(playerID2)+': "'+str(player2)+'" is ready.\n\n')
         game_log.write(str('ground'+str(random.randint(1,3))))#line7 is floortype, generates a floortype for the game
         game_log.close()
@@ -271,7 +271,7 @@ class ClientHandler:
         '''
         self.Player1=Player(0.1,0.6)
         self.Player2=Player(0.8,0.6)
-        game_log=open(str(str(self.lobby_ID)+'.txt'),'r')#using the text file ensures sync across both instances of server connection
+        game_log=open(str('log/'+str(self.lobby_ID)+'.txt'),'r')#using the text file ensures sync across both instances of server connection
         for pos,line in enumerate(game_log): #this for loop finds the 7th line in the file and sets it to var line
             if pos == 6:
                 #print('line',pos,'is: ',line)
