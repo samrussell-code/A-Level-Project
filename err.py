@@ -18,6 +18,7 @@ def ERR_CATCH(id):
         'Password is incorrect.',  # 10
         'Could not find the data kill value',  # 11
         'Data collision error, abandoning this packet',  # 12
-        'Client has closed the program, ending session'  # 13
+        'Client has closed the program, ending session',  # 13
+        'Recursion error reached' #14
     ]
     print(str('Error #'+str(id)+'|'+errmsgs[id]+'\n'))

@@ -202,9 +202,9 @@ class PygameWindow():
         pygame.mixer.music.set_volume(0.05)
         # sprite of image menu_background, with no collisions, in the centre of screen.
         self.background = Sprite(
-            self.screen, self.imageDict['menu_background'], True, 0.5, 0.5)
+            self.screen, self.imageDict['menu_background'], True, 0.5, 0.5, False, 'background')
         self.title_object = Sprite(
-            self.screen, self.imageDict['menu_title'], False, 0.5, 0.15)
+            self.screen, self.imageDict['menu_title'], False, 0.5, 0.15, False, 'title_object')
         self.title_object.animations.update({'Bounce': VectorAnimation([
             '300 0 -0.1',  # syntax FRAMES X_update Y_update
             '500 0 0',
@@ -267,6 +267,9 @@ class PygameWindow():
                     self.bullet.UpdateRotation(inf[9])
                 if inf[10] != self.opponentbullet.angle:
                     self.opponentbullet.UpdateRotation(inf[10])
+                var=self.CheckCollisions(self.SPRITE_RENDER_LIST)
+                if var!=False:  rprint(var,'var')
+
 
     def button_layout(self, offsetx, offsety, sizex=-1, sizey=-1, auto=True):
         if auto == True:  # size of button should be automatic
@@ -334,6 +337,47 @@ class PygameWindow():
                         self.input_list[3] = 0
             self.UIManager.process_events(event)
 
+
+    def FilterColliders(self,sprite):
+        '''Only returns objects that are intended to have collisions
+        '''
+        return True if sprite.isCollider==False else False
+
+    def CompareBoundaries(self,boundary1,boundary2):
+        '''Takes 2 boundaries and compares if 1 is inside the other
+
+           Format    0-self.topLeft, 1-self.topRight,
+                     2-self.botLeft, 3-self.botRight
+        '''
+        for boundary in boundary1:
+            if boundary[1]>boundary2[0][1] and boundary[1]<boundary2[2][1] and boundary[0]>boundary2[0][0] and boundary[0]<boundary2[1][0]:
+                return True
+            else:   return False
+
+    def CheckCollisions(self,spriteList,sprite1index=0,sprite2index=1,recursions=0):
+        ''' Takes a sprite list and compares every sprite against each other in the list until a collision is found.
+
+            Increments the sprite to compare to until all sprites have been iterated, then increments the sprite being compared.
+        '''
+        MAX_RECURSIONS=100
+        spriteList=list(filter(self.FilterColliders,spriteList))
+        if len(spriteList)==0:  return False
+        if sprite2index>=len(spriteList): #if all sprites have been checked against sprite1
+            sprite1index+=1
+            sprite2index=0
+        if sprite1index>=len(spriteList): #if all sprites have been checked against all other sprites
+            return False
+        if recursions>MAX_RECURSIONS:
+            ERR_CATCH(14)
+            return False
+        recursions+=1
+        if sprite1index==sprite2index: #skip over checking itself
+            return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1)
+        sprite1=spriteList[sprite1index];sprite2=spriteList[sprite2index]
+        if self.CompareBoundaries(sprite1.collider.boundaries,sprite2.collider.boundaries)==True: #returns true if a collision has occurred
+            return sprite1.name,sprite2.name
+        return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1)
+
     def GAME_START(self):  # PLAYER 1 stuff here
         ''' Clears the list of items to render on the screen, then draws lobby title text, either waiting for player 2, or player 2 found
         '''
@@ -371,20 +415,20 @@ class PygameWindow():
         # server now sends out type of ground to use in game
         result = self.GameManager.CheckServerResponse()
         background = Sprite(
-            self.screen, self.imageDict['game-background'], True, 0.5, 0.5)
-        floor = Sprite(self.screen, self.imageDict[result[1]], False, 0.5, 0.9)
+            self.screen, self.imageDict['game-background'], True, 0.5, 0.5, False, 'game_background')
+        floor = Sprite(self.screen, self.imageDict[result[1]], True, 0.5, 0.9, 'floor')
         self.SPRITE_RENDER_LIST.extend([background, floor])
         print('ground texture set up complete.')
         self.selectAudio['bgamb']
         pygame.mixer.music.play()
         self.bullet = Sprite(
-            self.screen, self.imageDict['bullet-idle_1'], False, 0.1, 0.6)
+            self.screen, self.imageDict['bullet-idle_1'], False, 0.1, 0.6, False, 'bullet')
         self.opponentbullet = Sprite(
-            self.screen, self.imageDict['bullet-idle_1'], False, 0.8, 0.6)
+            self.screen, self.imageDict['bullet-idle_1'], False, 0.8, 0.6, False, 'opp_bullet')
         self.tank = Tank(
-            self.screen, self.imageDict['tank1'], False, 0.1, 0.6, True)
+            self.screen, self.imageDict['tank1'], False, 0.1, 0.6, False, 'tank')
         self.enemytank = Tank(
-            self.screen, self.imageDict['enemytank1'], False, 0.8, 0.6)
+            self.screen, self.imageDict['enemytank1'], False, 0.8, 0.6, False, 'opp_tank')
         self.SPRITE_RENDER_LIST.extend(
             [self.bullet, self.opponentbullet, self.tank, self.enemytank])
         self.bullet.collider.ShowCollisions()
@@ -412,6 +456,15 @@ class PygameWindow():
         pygame.draw.rect(self.screen, (255, 255, 255), pygame.Rect(
             0, 0, self.screenwidth, self.screenheight))
         for sprite in self.SPRITE_RENDER_LIST:
+            try:
+                sprite.collider.boundaries=[
+                        (0+sprite.pX, 0+sprite.pY),
+                        (sprite.collider.width+sprite.pX, 0+sprite.pY),
+                        (0+sprite.pX, sprite.collider.height+sprite.pY),
+                        (sprite.collider.width+sprite.pX, sprite.collider.height+sprite.pY)
+        ]
+            except:
+                pass
             for animation in sprite.animations.values():  # updates every animation, for every sprite
                 if animation.current_instruction == 0 and animation.instruction_progress == 0:
                     sprite.pX, sprite.pY = animation.initial_position
@@ -460,7 +513,7 @@ class Image():
 
 
 class Sprite():
-    def __init__(self, screen, image=None, isCollider=False, pivotX=0, pivotY=0, debugBBox=False):
+    def __init__(self, screen, image=None, isCollider=False, pivotX=0, pivotY=0, debugBBox=False, name='None'):
         '''Screen is the pygame screen to be used.
 
             Image is the currently rendered image object for the sprite to use.
@@ -476,6 +529,7 @@ class Sprite():
         self.animations = {}
         self.isCollider = isCollider
         self.angle = 0
+        self.name=name
         #print('sprite of :',self.image,self.pX,self.pY)
         if self.image != None and isCollider == False:
             self.collider = BoundingBox(
@@ -498,8 +552,8 @@ class Sprite():
 
 
 class Tank(Sprite):
-    def __init__(self, screen, image=None, isCollider=False, pivotX=0, pivotY=0, debugBBox=False):
-        super().__init__(screen, image, isCollider, pivotX, pivotY, debugBBox)
+    def __init__(self, screen, image=None, isCollider=False, pivotX=0, pivotY=0, debugBBox=False, name='None'):
+        super().__init__(screen, image, isCollider, pivotX, pivotY, debugBBox, name)
         self.health = 3
 
 
@@ -509,10 +563,10 @@ class BoundingBox():
 
     def __init__(self, screen, width, height, pX=0, pY=0, debugBBox=False):
         self.width, self.height, self.pX, self.pY, self.debugBBox, self.screen = width, height, pX, pY, debugBBox, screen
-        self.topLeft = (0+pX, 0+pY)
-        self.topRight = (self.width+pX, 0+pY)
-        self.botLeft = (0+pX, self.height+pY)
-        self.botRight = (self.width+pX, self.height+pY)
+        self.topLeft = (0+self.pX, 0+self.pY)
+        self.topRight = (self.width+self.pX, 0+self.pY)
+        self.botLeft = (0+self.pX, self.height+self.pY)
+        self.botRight = (self.width+self.pX, self.height+self.pY)
         self.boundaries = [
             self.topLeft, self.topRight,
             self.botLeft, self.botRight

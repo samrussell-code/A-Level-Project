@@ -544,8 +544,8 @@ class Bullet():
         self.xDirection = dX
         # rprint(self.xDirection,'direction')
         hypotenuse = math.sqrt((dY**2)+(dX**2))  # this is always positive
-        rprint(hypotenuse, 'hypotenuse')
-        rprint(dX, 'dX')
+        #rprint(hypotenuse, 'hypotenuse')
+        #rprint(dX, 'dX')
         angle = float(math.degrees(math.atan(dY/dX))) if (dX !=
                                                           0 and hypotenuse > 0.001) else 0 if dX > 0 else 180
         if dY < 0 and dX > 0:  # 0 to 90
@@ -617,10 +617,10 @@ class Bullet():
 
     def BeginCooldown(self):
         self.cooldown = True
-        print('cooldown started')
+        #print('cooldown started')
         time.sleep(3)
         self.cooldown = False
-        print('cooldown over')
+        #print('cooldown over')
 
 
 server = NewServer()
