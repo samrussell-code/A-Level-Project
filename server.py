@@ -47,7 +47,9 @@ sql_create_LOBBY_table = """CREATE TABLE IF NOT EXISTS LOBBY (
     PlayerID2 integer,
     IsOnline blob,
     Player1Data blob,
-    Player2Data blob
+    Player2Data blob,
+    Player1Health blob,
+    Player2Health blob
 );"""
 
 
@@ -343,8 +345,8 @@ class ClientHandler:
     def ManageGame(self, player_id):
         '''MAIN
         '''
-        self.Player1 = Player(0.1, 0.6)
-        self.Player2 = Player(0.8, 0.6)
+        self.Player1 = Player(0.1, 0.6, 3)
+        self.Player2 = Player(0.8, 0.6, 3)
         # using the text file ensures sync across both instances of server connection
         game_log = open(str('log/'+str(self.lobby_ID)+'.txt'), 'r')
         # this for loop finds the 7th line in the file and sets it to var line
@@ -356,10 +358,10 @@ class ClientHandler:
         connection = dbConnect('tank')
         # OPCODE5 is type of ground texture to use
         self.SendData(5, [floortype, 'kill||'], False)
-        dbAddToTable(connection, 'UPDATE LOBBY SET Player1Data=? WHERE LobbyID=?;',
-                     ('0.1 0.6 0.1 0.6 0', self.lobby_ID), 'LOBBY', False)
-        dbAddToTable(connection, 'UPDATE LOBBY SET Player2Data=? WHERE LobbyID=?;',
-                     ('0.8 0.6 0.1 0.6 0', self.lobby_ID), 'LOBBY', False)
+        dbAddToTable(connection, 'UPDATE LOBBY SET Player1Data=?, Player1Health=? WHERE LobbyID=?;',
+                     ('0.1 0.6 0.1 0.6 0 3','3', self.lobby_ID), 'LOBBY', False)
+        dbAddToTable(connection, 'UPDATE LOBBY SET Player2Data=?, Player2Health=? WHERE LobbyID=?;',
+                     ('0.8 0.6 0.1 0.6 0 3','3', self.lobby_ID), 'LOBBY', False)
         self.GAME_TIME = True
         threading.Thread(target=self.UpdatePlayerInputs,
                          args=(player_id,), daemon=True).start()
@@ -381,9 +383,28 @@ class ClientHandler:
                 self.Player2.bullet.angle,
                 'kill||'
             ], False,), daemon=True).start()
-        time.sleep(0.1)# sleep here prevents data collision
-        print('sending winner',self.winner)
-        self.SendData(7, [self.winner, 'kill||'], False)
+        if player_id==1: #updates the healths just before calculations occur
+                dbAddToTable(connection, 'UPDATE LOBBY SET Player2Health=? WHERE LobbyID=?;', (str(
+                self.Player2.health),self.lobby_ID),'LOBBY',False)
+        if player_id==2:
+            dbAddToTable(connection, 'UPDATE LOBBY SET Player1Health=? WHERE LobbyID=?;', (str(
+            self.Player1.health),self.lobby_ID),'LOBBY',False)
+        time.sleep(0.1)  # sleep here prevents data collision
+        cursor=connection.cursor()
+        cursor.execute(f'''SELECT Player1Health,Player2Health,LobbyID,PlayerID1,PlayerID2 FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''')
+        result=cursor.fetchall()[0] #result[0] is player1health, result[1] is player2health
+        if int(result[0])>int(result[1]):
+            winner='1'
+            winnerid=result[3]
+        elif int(result[1])>int(result[0]):
+            winner='2'
+            winnerid=result[4]
+        else:
+            winner='ERROR'
+        cursor.execute(f'''SELECT username FROM PROFILE_INFO WHERE UUID="{winnerid}"''')
+        winnername=cursor.fetchone()[0]
+        if player_id==1:    print('WINNER OF GAME',result[2],'is:', winnername)
+        self.SendData(7, [winner, 'kill||'], False)
 
     def PhysicsUpdate(self, player_id):
         deltatime = time.perf_counter()
@@ -406,7 +427,7 @@ class ClientHandler:
                 origin_time = time.perf_counter()
                 player.bullet.position_x, player.bullet.position_y = player.position_x, player.position_y
                 player.bullet.velocity, player.bullet.mouse_angle = player.bullet.GetVelocityAngle(
-                    player.mousepos, (player.position_x, player.position_y))
+                    tuple(player.mousepos), (player.position_x, player.position_y))
             if player.bullet.isMoving == True:
                 exist_time = self.CalculateDeltaTime(origin_time)
                 player.bullet.GetDisplacement_(
@@ -414,15 +435,6 @@ class ClientHandler:
             player.position_x += (player.velocity_x*deltatime)
             # update the positions of YOUR PLAYER
             player.position_y += (player.velocity_y*deltatime)
-            #print('CLOCKTIME',clocktime,'TIME',time.perf_counter(),'CHANGE IN TIME',deltatime)
-            deltatime = self.CalculateDeltaTime(clocktime)
-            #while deltatime==0.0: deltatime=self.CalculateDeltaTime(clocktime); print(deltatime)
-            # rprint(player.velocity_x*deltatime,'deltatime')
-            # rprint(deltatime,'deltatime')
-            while deltatime < (1/60):
-                time.sleep(0.001)
-                deltatime = self.CalculateDeltaTime(clocktime)
-
             if int(player_id) == 1 and (len(self.Player1.collision_list) > 0 or len(self.Player2.collision_list) > 0):
                 # each player only checks their respective bullet for collisions
                 if str(['bullet', 'opp_tank']) in str(self.Player1.collision_list):
@@ -431,7 +443,10 @@ class ClientHandler:
                 # have to convert to string in order to probe the 2D array
                 if str(['opp_bullet', 'tank']) in str(self.Player2.collision_list):
                     self.Player1.hit()
-
+            deltatime = self.CalculateDeltaTime(clocktime)
+            while deltatime < (1/60):
+                time.sleep(0.001)
+                deltatime = self.CalculateDeltaTime(clocktime)
             if int(player_id) == 1:
                 self.Player1 = player  # this will be empty if user is p2
             elif int(player_id) == 2:
@@ -446,35 +461,50 @@ class ClientHandler:
         connection = dbConnect('tank')
         while self.GAME_TIME == True:
             if int(player_id) == 1:
-                # upload player 1 inputs to database host
-                # read player 2 inputs from database and apply to self.player2.left/right
+                # upload player 1 positions to database host
+                # read player 2 positions from database and apply to self.player2, read player 1 health from host
+                # upload player 2 health to database host
 
                 dbAddToTable(connection, 'UPDATE LOBBY SET Player1Data=? WHERE LobbyID=?;', (str(
-                    self.Player1.get_position()), self.lobby_ID), 'LOBBY', False)
+                    self.Player1.get_data()), self.lobby_ID), 'LOBBY', False)
                 cursor = connection.cursor()
                 cursor.execute(
                     f'''SELECT Player2Data FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''')
                 result = cursor.fetchone()[0]
                 # rprint(result,'result')
                 #print('got a player 2 position of ',result)
-                self.Player2.set_position(result)
+                self.Player2.set_data(result)
+                cursor.execute(
+                    f'''SELECT Player1Health FROM LOBBY WHERE LobbyID="{self.lobby_ID}"'''
+                )
+                result=cursor.fetchone()[0]
+                self.Player1.health=int(result)
+                dbAddToTable(connection, 'UPDATE LOBBY SET Player2Health=? WHERE LobbyID=?;', (str(
+                    self.Player2.health),self.lobby_ID),'LOBBY',False)
             elif int(player_id) == 2:
-                # upload player 2 inputs to database
-                # read player 1 inputs from database and apply to self.player1.left/right
+                # upload player 2 positions to database
+                # read player 1 inputs from database and apply to self.player1.left/right, read player 2 health from host
+                # upload player 1 health to database host.
                 dbAddToTable(connection, 'UPDATE LOBBY SET Player2Data=? WHERE LobbyID=?;', (str(
-                    self.Player2.get_position()), self.lobby_ID), 'LOBBY', False)
+                    self.Player2.get_data()), self.lobby_ID), 'LOBBY', False)
                 cursor = connection.cursor()
                 cursor.execute(
                     f'''SELECT Player1Data FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''')
                 result = cursor.fetchone()[0]
-                self.Player1.set_position(result)
+                self.Player1.set_data(result)
+                cursor.execute(
+                    f'''SELECT Player2Health FROM LOBBY WHERE LobbyID="{self.lobby_ID}"'''
+                )
+                result=cursor.fetchone()[0]
+                self.Player2.health=int(result)
+                dbAddToTable(connection, 'UPDATE LOBBY SET Player1Health=? WHERE LobbyID=?;', (str(
+                    self.Player1.health),self.lobby_ID),'LOBBY',False)
             cursor.execute(
                 f'''SELECT IsOnline FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''')
             result = cursor.fetchone()[0]
             if result == 'False':
                 self.GAME_TIME = False
                 # checks if other thread has reported game over (e.g. has lost)
-                self.winner = 1 if int(player_id) == 2 else 2
             pn = 0
             for player in [self.Player1, self.Player2]:
                 pn += 1
@@ -483,7 +513,6 @@ class ClientHandler:
                     dbAddToTable(connection, 'UPDATE LOBBY SET IsOnline=? WHERE LobbyID=?;',
                                  ('False', self.lobby_ID), 'LOBBY', False)
                     self.GAME_TIME = False
-                    self.winner = player_id
             # print(self.Player1.get_position(),self.Player2.get_position())
 
     def SendData(self, opcode, data_list, recieve=True):
@@ -532,7 +561,7 @@ class ClientHandler:
 
 
 class Player():
-    def __init__(self, init_position_x=0, init_position_y=0):
+    def __init__(self, init_position_x=0, init_position_y=0 ,health=3):
         self.left_input = 0
         self.right_input = 0
         self.velocity_x = 0
@@ -540,7 +569,7 @@ class Player():
         self.position_x = init_position_x
         self.position_y = init_position_y
         self.lmb_input = 0
-        self.mousepos = (0, 0)
+        self.mousepos = (0.0, 0.0)
         self.bullet = Bullet(init_position_x, init_position_y)
         self.collision_list = []
         self.health = 3
@@ -554,13 +583,12 @@ class Player():
             rprint(self.health, 'health')
             self.hit_cooldown = time.perf_counter()
 
-    def get_position(self):  # returns the player position variables in a str
+    def get_data(self):  # returns the player position variables in a str
         return str(self.position_x)+' '+str(self.position_y)+'  '+str(self.bullet.position_x)+' '+str(self.bullet.position_y)+' '+str(self.bullet.angle)
 
-    def set_position(self, input_str):
+    def set_data(self, input_str):
         input_str = input_str.split()
-        #rprint(input_str,'input string')
-        self.position_x, self.position_y, self.bullet.position_x, self.bullet.position_y = float(
+        self.position_x, self.position_y, self.bullet.position_x, self.bullet.position_y= float(
             input_str[0]), float(input_str[1]), float(input_str[2]), float(input_str[3])
 
 

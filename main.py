@@ -84,9 +84,9 @@ class LaunchWindow(Tk):
         self.ContactServer(opcode)
         operation = self.RECV_DATA()
         # print('updateclient recieved',operation)
-        print('upd')
+        #print('upd')
         if operation[0] == '0':  # recieving the server accepting entry
-            print('0')
+            #print('0')
             self.infoLabel.config(text=operation[1])
             self.usernameEntry.delete(0, 'end')
             self.passwordEntry.delete(0, 'end')
@@ -98,7 +98,6 @@ class LaunchWindow(Tk):
                 except:
                     res = self.res
                     res = res.split('x')
-                print('help')
                 self.destroy()
                 resX, resY = int(res[0]), int(res[1])
                 if resX == 0 or resY == 0:
@@ -198,9 +197,11 @@ class PygameWindow():
             'enemytank3': Image('enemytank3.png', '#ffffff', 0.05, self.screenwidth, self.screenheight),
             'game-background': Image('game-background.png', '#ffffff', 0.8, self.screenwidth, self.screenheight)
         }
-        self.selectAudio = {
-            'bgamb': pygame.mixer.music.load('mp3/bgamb.mp3'),
-            'fire': pygame.mixer.music.load('mp3/fire.mp3')
+        self.selectMusic = {
+            'bgamb': pygame.mixer.music.load('mp3/bgamb.mp3')
+        }
+        self.selectSound = {
+            'fire': pygame.mixer.Sound('mp3/fire.mp3')
         }
         pygame.mixer.music.set_volume(0.05)
         # sprite of image menu_background, with no collisions, in the centre of screen.
@@ -250,8 +251,6 @@ class PygameWindow():
             if self.GAME_START == True:
                 # e.g.['6', '0', '0', '0', '0', '0', '0', '0', '0']
                 # p1px,p1py,p1bpx,p1bpy,p2px,p2py,p2bpx,p2bpy,p1ba,p2ba
-                if self.GameManager.server_response[0] != '6':
-                    rprint(str(self.GameManager.server_response))
                 # OPCODE7 is end game
                 if str(self.GameManager.server_response[0]) == '7':
                     self.end_game(self.GameManager.server_response)
@@ -321,10 +320,8 @@ class PygameWindow():
                 # grabs the lobby name and password entered
                 self.password = self.password_entry.get_text()
                 if event.ui_element == self.create_button:
-                    print('create')
                     self.GAME_START()
                 elif event.ui_element == self.join_button:
-                    print('join')
                     self.GAME_FIND()
             if self.GAME_START == True:  # these are checked only during game runtime
                 # [a,d,m1]
@@ -348,6 +345,7 @@ class PygameWindow():
                         self.input_list[2] = self.convert_to_relative_space(
                             pygame.mouse.get_pos())
                         self.input_list[3] = 1
+                        self.selectSound['fire'].play()
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 1:
                         # print(left mouse up)
@@ -436,7 +434,6 @@ class PygameWindow():
         return (result[0], result[1])
 
     def SpawnPlayers(self, opponentname, playerType=1):
-        print('waiting for ground texture code...')
         # server now sends out type of ground to use in game
         result = self.GameManager.CheckServerResponse()
         background = Sprite(
@@ -444,8 +441,7 @@ class PygameWindow():
         floor = Sprite(
             self.screen, self.imageDict[result[1]], True, 0.5, 0.9, 'floor')
         self.SPRITE_RENDER_LIST.extend([background, floor])
-        print('ground texture set up complete.')
-        self.selectAudio['bgamb']
+        self.selectMusic['bgamb']
         pygame.mixer.music.play()
         self.bullet = Sprite(
             self.screen, self.imageDict['bullet-idle_1'], False, 0.1, 0.6, True, 'bullet')
