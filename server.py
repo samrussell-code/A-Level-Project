@@ -86,8 +86,8 @@ def REGISTER_ACCOUNT(username, password, connection, sockname):
         f'''SELECT UUID FROM PROFILE_INFO WHERE username="{username}"''')  # tries to find a user with that username in profile info
     result = cursor.fetchall()
     if len(result) == 0:  # if username not found in profile info, registration to db can begin
-        dbAddToTable(connection, 'INSERT INTO PROFILE_INFO (username, password) VALUES (?,?);', (username,
-                     password), 'PROFILE_INFO')  # adds the username and password to the profile information
+        dbAddToTable(connection, 'INSERT INTO PROFILE_INFO (username, password,WinCount) VALUES (?,?,?);', (username,
+                     password, 0), 'PROFILE_INFO')  # adds the username and password to the profile information
         cursor.execute(f'''SELECT IPID FROM CONNECTION_IP WHERE IP="{ip}"''')
         result = cursor.fetchone()  # attempts to find the connection IP address in the database.
         if result == None:
@@ -359,9 +359,9 @@ class ClientHandler:
         # OPCODE5 is type of ground texture to use
         self.SendData(5, [floortype, 'kill||'], False)
         dbAddToTable(connection, 'UPDATE LOBBY SET Player1Data=?, Player1Health=? WHERE LobbyID=?;',
-                     ('0.1 0.6 0.1 0.6 0 3','3', self.lobby_ID), 'LOBBY', False)
+                     ('0.1 0.6 0.1 0.6 0 3', '3', self.lobby_ID), 'LOBBY', False)
         dbAddToTable(connection, 'UPDATE LOBBY SET Player2Data=?, Player2Health=? WHERE LobbyID=?;',
-                     ('0.8 0.6 0.1 0.6 0 3','3', self.lobby_ID), 'LOBBY', False)
+                     ('0.8 0.6 0.1 0.6 0 3', '3', self.lobby_ID), 'LOBBY', False)
         self.GAME_TIME = True
         threading.Thread(target=self.UpdatePlayerInputs,
                          args=(player_id,), daemon=True).start()
@@ -383,35 +383,38 @@ class ClientHandler:
                 self.Player2.bullet.angle,
                 'kill||'
             ], False,), daemon=True).start()
-        if player_id==1: #updates the healths just before calculations occur
-                dbAddToTable(connection, 'UPDATE LOBBY SET Player2Health=? WHERE LobbyID=?;', (str(
-                self.Player2.health),self.lobby_ID),'LOBBY',False)
-        if player_id==2:
+        if player_id == 1:  # updates the healths just before calculations occur
+            dbAddToTable(connection, 'UPDATE LOBBY SET Player2Health=? WHERE LobbyID=?;', (str(
+                self.Player2.health), self.lobby_ID), 'LOBBY', False)
+        if player_id == 2:
             dbAddToTable(connection, 'UPDATE LOBBY SET Player1Health=? WHERE LobbyID=?;', (str(
-            self.Player1.health),self.lobby_ID),'LOBBY',False)
+                self.Player1.health), self.lobby_ID), 'LOBBY', False)
         time.sleep(0.1)  # sleep here prevents data collision
-        cursor=connection.cursor()
-        cursor.execute(f'''SELECT Player1Health,Player2Health,LobbyID,PlayerID1,PlayerID2 FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''')
-        result=cursor.fetchall()[0] #result[0] is player1health, result[1] is player2health
-        if int(result[0])>int(result[1]):
-            winner='1'
-            winnerid=result[3]
-        elif int(result[1])>int(result[0]):
-            winner='2'
-            winnerid=result[4]
+        cursor = connection.cursor()
+        cursor.execute(
+            f'''SELECT Player1Health,Player2Health,LobbyID,PlayerID1,PlayerID2 FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''')
+        result = cursor.fetchall(
+        )[0]  # result[0] is player1health, result[1] is player2health
+        if int(result[0]) > int(result[1]):
+            winner = '1'
+            winnerid = result[3]
+        elif int(result[1]) > int(result[0]):
+            winner = '2'
+            winnerid = result[4]
         else:
-            winner='ERROR'
-        cursor.execute(f'''SELECT username,WinCount FROM PROFILE_INFO WHERE UUID="{winnerid}"''')
-        userinf=cursor.fetchall()[0]
-        winnername=userinf[0]
+            winner = 'ERROR'
+        cursor.execute(
+            f'''SELECT username,WinCount FROM PROFILE_INFO WHERE UUID="{winnerid}"''')
+        userinf = cursor.fetchall()[0]
+        winnername = userinf[0]
         try:
-            wincount=int(userinf[1])
+            wincount = int(userinf[1])
         except:
-            wincount=0
-        if player_id==1:
-            print('WINNER OF GAME',result[2],'is:', winnername)
+            wincount = 0
+        if player_id == 1:
+            print('WINNER OF GAME', result[2], 'is:', winnername)
             dbAddToTable(connection, 'UPDATE PROFILE_INFO SET WinCount=? WHERE UUID=?;', (str(
-            wincount+1),winnerid),'PROFILE_INFO',False)
+                wincount+1), winnerid), 'PROFILE_INFO', False)
         self.SendData(7, [winnername, 'kill||'], False)
 
     def PhysicsUpdate(self, player_id):
@@ -485,10 +488,10 @@ class ClientHandler:
                 cursor.execute(
                     f'''SELECT Player1Health FROM LOBBY WHERE LobbyID="{self.lobby_ID}"'''
                 )
-                result=cursor.fetchone()[0]
-                self.Player1.health=int(result)
+                result = cursor.fetchone()[0]
+                self.Player1.health = int(result)
                 dbAddToTable(connection, 'UPDATE LOBBY SET Player2Health=? WHERE LobbyID=?;', (str(
-                    self.Player2.health),self.lobby_ID),'LOBBY',False)
+                    self.Player2.health), self.lobby_ID), 'LOBBY', False)
             elif int(player_id) == 2:
                 # upload player 2 positions to database
                 # read player 1 inputs from database and apply to self.player1.left/right, read player 2 health from host
@@ -503,10 +506,10 @@ class ClientHandler:
                 cursor.execute(
                     f'''SELECT Player2Health FROM LOBBY WHERE LobbyID="{self.lobby_ID}"'''
                 )
-                result=cursor.fetchone()[0]
-                self.Player2.health=int(result)
+                result = cursor.fetchone()[0]
+                self.Player2.health = int(result)
                 dbAddToTable(connection, 'UPDATE LOBBY SET Player1Health=? WHERE LobbyID=?;', (str(
-                    self.Player1.health),self.lobby_ID),'LOBBY',False)
+                    self.Player1.health), self.lobby_ID), 'LOBBY', False)
             cursor.execute(
                 f'''SELECT IsOnline FROM LOBBY WHERE LobbyID="{self.lobby_ID}"''')
             result = cursor.fetchone()[0]
@@ -568,7 +571,7 @@ class ClientHandler:
 
 
 class Player():
-    def __init__(self, init_position_x=0, init_position_y=0 ,health=3):
+    def __init__(self, init_position_x=0, init_position_y=0, health=3):
         self.left_input = 0
         self.right_input = 0
         self.velocity_x = 0
@@ -587,7 +590,6 @@ class Player():
         '''
         if time.perf_counter()-self.hit_cooldown > 3:
             self.health = self.health-1 if self.health > 0 else 0
-            rprint(self.health, 'health')
             self.hit_cooldown = time.perf_counter()
 
     def get_data(self):  # returns the player position variables in a str
@@ -595,7 +597,7 @@ class Player():
 
     def set_data(self, input_str):
         input_str = input_str.split()
-        self.position_x, self.position_y, self.bullet.position_x, self.bullet.position_y= float(
+        self.position_x, self.position_y, self.bullet.position_x, self.bullet.position_y = float(
             input_str[0]), float(input_str[1]), float(input_str[2]), float(input_str[3])
 
 

@@ -1,5 +1,4 @@
 import time
-from err import ERR_CATCH
 from tkinter import *
 from functools import partial
 from cryptography.hazmat.primitives import hashes
@@ -84,9 +83,9 @@ class LaunchWindow(Tk):
         self.ContactServer(opcode)
         operation = self.RECV_DATA()
         # print('updateclient recieved',operation)
-        #print('upd')
+        # print('upd')
         if operation[0] == '0':  # recieving the server accepting entry
-            #print('0')
+            # print('0')
             self.infoLabel.config(text=operation[1])
             self.usernameEntry.delete(0, 'end')
             self.passwordEntry.delete(0, 'end')
@@ -111,7 +110,7 @@ class LaunchWindow(Tk):
         try:
             password_token = self.EncryptPassword(password)
         except:
-            ERR_CATCH(5)
+            print()
         #with open('client//username.txt','w') as file: file.write(username);file.close()
         #with open('client//authtoken.txt','w') as file: file.write(password_token);file.close()
         self.SEND_DATA(opcode, [self.username, password_token])
@@ -134,7 +133,7 @@ class LaunchWindow(Tk):
             socketObject.connect(('tank.servegame.com', port))
             return socketObject
         except:
-            ERR_CATCH(8)
+            print()
 
     def EncryptPassword(self, password):
         token = (hashes.Hash(hashes.SHA512()))
@@ -281,8 +280,21 @@ class PygameWindow():
     def end_game(self, data):
         self.GAME_START = False
         winner = data[1]  # winning player
+        victory_text_layout = self.button_layout(
+            0.3, 0.3, 0.4, 0.1, False)
+        victory_text = pygame_gui.elements.UITextBox(
+            html_text=f'''<b><u>Player name '{winner}' Has won the match!</u></b>''',
+            relative_rect=victory_text_layout,
+            manager=self.UIManager,
+            anchors={'left': 'left',
+                   'right': 'right',
+                   'top': 'top',
+                   'bottom': 'bottom'})
+        self.UIManager.update(self.deltatime)
+        self.UIManager.draw_ui(self.screen)
+        pygame.display.flip()
         print('GAME OVER - PLAYER', winner, 'WINS!')
-        time.sleep(1)
+        time.sleep(3)
         # creates a new instance of the game from the lobby screen, then closes the previous window
         window = PygameWindow(
             self.screenwidth, self.screenheight, self.username, self.ip)
@@ -387,7 +399,7 @@ class PygameWindow():
         if sprite1index >= len(spriteList):
             return collisionList
         if recursions > MAX_RECURSIONS:
-            ERR_CATCH(14)
+            print()
             return collisionList
         recursions += 1
         if sprite1index == sprite2index:  # skip over checking itself
@@ -408,10 +420,6 @@ class PygameWindow():
         self.SPRITE_RENDER_LIST = []  # empties the screen
         self.GameManager = GameManager(
             self.ip, self.username, 2, self.name, self.password)  # 2 for create, 3 for join
-        lobby_title_text_layout = self.button_layout(
-            0.3, 0.3, 0.4, 0.05, False)
-        lobby_title_text = pygame_gui.elements.UITextBox(
-            html_text=f'''<b><u>{self.GameManager.lobby_name}: Waiting for opponent... </u></b>''', relative_rect=lobby_title_text_layout, manager=self.UIManager)
         opcode, opponentName = self.PLAYER_JOIN()
         self.SpawnPlayers(opponentName, 1)
 
@@ -428,7 +436,7 @@ class PygameWindow():
         '''
         result = self.GameManager.CheckServerResponse()
         while result == None:
-            pass  # FIX HERE
+            pass  
         self.UIManager.clear_and_reset()
         self.SPRITE_RENDER_LIST = []  # empties the screen
         return (result[0], result[1])
