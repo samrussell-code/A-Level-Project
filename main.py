@@ -39,7 +39,7 @@ class LaunchWindow(Tk):
             text='TANK GAME', bg='#464646', fg='#eeeeee', font=self.titleFont)
         self.resListLabel = Label(
             text='Resolution:', bg='#464646', fg='#eeeeee', font=self.smallFont)
-        self.resListVar=StringVar()
+        self.resListVar = StringVar()
         self.resListbox = Listbox(self, listvariable=self.resolutionChoice,
                                   height=1, font=self.inputFont, selectmode='SINGLE')
         self.usernameLabel = Label(
@@ -57,7 +57,7 @@ class LaunchWindow(Tk):
         self.registerButton = Button(text='Register', bg='#eeeeee', fg='#464646',
                                      font=self.mediumFont, command=partial(self.UpdateClient, 0))
         self.resListbox.select_set(3)
-        self.res=self.resListbox.get(self.resListbox.curselection())
+        self.res = self.resListbox.get(self.resListbox.curselection())
         self.gameTitleLabel.place(
             relx=24/64, rely=3/40, relwidth=1/4, relheight=1/15)
         self.resListLabel.place(relx=14/16, rely=3/80,
@@ -79,6 +79,7 @@ class LaunchWindow(Tk):
         self.registerButton.place(
             relx=29/48, rely=28/40, relwidth=1/16, relheight=1/30)
         self.update()
+
     def UpdateClient(self, opcode):
         self.ContactServer(opcode)
         operation = self.RECV_DATA()
@@ -91,7 +92,8 @@ class LaunchWindow(Tk):
             self.passwordEntry.delete(0, 'end')
             if operation[2] == '1':  # operation[2] is a true/false success/fail
                 try:
-                    resStr = self.resListbox.get(self.resListbox.curselection())
+                    resStr = self.resListbox.get(
+                        self.resListbox.curselection())
                     res = resStr.split('x')
                 except:
                     res = self.res
@@ -180,7 +182,7 @@ class PygameWindow():
         pygame.display.set_icon(icon)
         # the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
         pygame.mouse.set_visible(1)
-        self.collisionlist=[]
+        self.collisionlist = []
         self.imageDict = {
             'bullet-idle_1': Image('bullet-idle_1.png', '#ffffff', 0.01, self.screenwidth, self.screenheight),
             'menu_background': Image('menu_background.png', None, 1, self.screenwidth, self.screenheight),
@@ -248,28 +250,44 @@ class PygameWindow():
             if self.GAME_START == True:
                 # e.g.['6', '0', '0', '0', '0', '0', '0', '0', '0']
                 # p1px,p1py,p1bpx,p1bpy,p2px,p2py,p2bpx,p2bpy,p1ba,p2ba
-                if len(self.GameManager.server_response) == 11:  # if no data has collided
-                    inf = self.GameManager.server_response
-                    self.old_inf = inf
-                    #rprint(self.GameManager.server_response,'server response')
-                else:  # data collision avoidance
-                    inf = self.old_inf
-                # print('inf:',inf)
-                #print('ORIGINAL TANK PX/PY',self.tank.pX,self.tank.pY)
-                self.tank.RefreshPosition(inf[1], inf[2])
-                #print('NEW TANK PX/PY',self.tank.pX,self.tank.pY)
-                self.bullet.RefreshPosition(inf[3], inf[4])
-                #print('NEW BULLET PX/PY',self.bullet.pX,self.bullet.pY)
-                self.enemytank.RefreshPosition(inf[5], inf[6])
-                #print('NEW ENEMYTANK PX/PY',self.enemytank.pX,self.enemytank.pY)
-                self.opponentbullet.RefreshPosition(inf[7], inf[8])
-                #print('NEW OPPONENTBULLET PX/PY',self.opponentbullet.pX,self.opponentbullet.pY)
-                if inf[9] != self.bullet.angle:
-                    self.bullet.UpdateRotation(inf[9])
-                if inf[10] != self.opponentbullet.angle:
-                    self.opponentbullet.UpdateRotation(inf[10])
-                self.input_list[4]=self.CheckCollisions(self.SPRITE_RENDER_LIST,0,0,0,[])
+                if self.GameManager.server_response[0] != '6':
+                    rprint(str(self.GameManager.server_response))
+                # OPCODE7 is end game
+                if str(self.GameManager.server_response[0]) == '7':
+                    self.end_game(self.GameManager.server_response)
+                else:
+                    if len(self.GameManager.server_response) == 11:  # if no data has collided
+                        inf = self.GameManager.server_response
+                        self.old_inf = inf
+                        #rprint(self.GameManager.server_response,'server response')
+                    else:  # data collision avoidance
+                        inf = self.old_inf
+                    # print('inf:',inf)
+                    #print('ORIGINAL TANK PX/PY',self.tank.pX,self.tank.pY)
+                    self.tank.RefreshPosition(inf[1], inf[2])
+                    #print('NEW TANK PX/PY',self.tank.pX,self.tank.pY)
+                    self.bullet.RefreshPosition(inf[3], inf[4])
+                    #print('NEW BULLET PX/PY',self.bullet.pX,self.bullet.pY)
+                    self.enemytank.RefreshPosition(inf[5], inf[6])
+                    #print('NEW ENEMYTANK PX/PY',self.enemytank.pX,self.enemytank.pY)
+                    self.opponentbullet.RefreshPosition(inf[7], inf[8])
+                    #print('NEW OPPONENTBULLET PX/PY',self.opponentbullet.pX,self.opponentbullet.pY)
+                    if inf[9] != self.bullet.angle:
+                        self.bullet.UpdateRotation(inf[9])
+                    if inf[10] != self.opponentbullet.angle:
+                        self.opponentbullet.UpdateRotation(inf[10])
+                    self.input_list[4] = self.CheckCollisions(
+                        self.SPRITE_RENDER_LIST, 0, 0, 0, [])
 
+    def end_game(self, data):
+        self.GAME_START = False
+        winner = data[1]  # winning player
+        print('GAME OVER - PLAYER', winner, 'WINS!')
+        time.sleep(1)
+        # creates a new instance of the game from the lobby screen, then closes the previous window
+        window = PygameWindow(
+            self.screenwidth, self.screenheight, self.username, self.ip)
+        pygame.quit()
 
     def button_layout(self, offsetx, offsety, sizex=-1, sizey=-1, auto=True):
         if auto == True:  # size of button should be automatic
@@ -337,48 +355,53 @@ class PygameWindow():
                         self.input_list[3] = 0
             self.UIManager.process_events(event)
 
-
-    def FilterColliders(self,sprite):
+    def FilterColliders(self, sprite):
         '''Only returns objects that are intended to have collisions
         '''
-        return True if sprite.isCollider==False else False
+        return True if sprite.isCollider == False else False
 
-    def CompareBoundaries(self,boundary1,boundary2):
+    def CompareBoundaries(self, boundary1, boundary2):
         '''Takes 2 boundaries and compares if 1 is inside the other
 
            Format    0-self.topLeft, 1-self.topRight,
                      2-self.botLeft, 3-self.botRight
         '''
         for boundary in boundary1:
-            if boundary[1]>boundary2[0][1] and boundary[1]<boundary2[2][1] and boundary[0]>boundary2[0][0] and boundary[0]<boundary2[1][0]:
+            if boundary[1] > boundary2[0][1] and boundary[1] < boundary2[2][1] and boundary[0] > boundary2[0][0] and boundary[0] < boundary2[1][0]:
                 return True
-            else:   return False
+            else:
+                return False
 
-    def CheckCollisions(self,spriteList,sprite1index=0,sprite2index=0,recursions=0,collisionList=[]):
+    def CheckCollisions(self, spriteList, sprite1index=0, sprite2index=0, recursions=0, collisionList=[]):
         ''' Takes a sprite list and compares every sprite against each other in the list until a collision is found.
 
             Increments the sprite to compare to until all sprites have been iterated, then increments the sprite being compared.
         '''
-        MAX_RECURSIONS=250
-        spriteList=list(filter(self.FilterColliders,spriteList))
-        if len(spriteList)==0:  return False
-        if sprite2index>=len(spriteList): #if all sprites have been checked against sprite1
-            sprite1index+=1
-            sprite2index=0
-        if sprite1index>=len(spriteList): #if all sprites have been checked against all other sprites
+        MAX_RECURSIONS = 250
+        spriteList = list(filter(self.FilterColliders, spriteList))
+        if len(spriteList) == 0:
+            return False
+        # if all sprites have been checked against sprite1
+        if sprite2index >= len(spriteList):
+            sprite1index += 1
+            sprite2index = 0
+        # if all sprites have been checked against all other sprites
+        if sprite1index >= len(spriteList):
             return collisionList
-        if recursions>MAX_RECURSIONS:
+        if recursions > MAX_RECURSIONS:
             ERR_CATCH(14)
             return collisionList
-        recursions+=1
-        if sprite1index==sprite2index: #skip over checking itself
-            return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1,collisionList)
-        sprite1=spriteList[sprite1index];sprite2=spriteList[sprite2index]
-        if self.CompareBoundaries(sprite1.collider.boundaries,sprite2.collider.boundaries)==True: #returns true if a collision has occurred
-            if [sprite1.name,sprite2.name] not in collisionList:
-                collisionList.append([sprite1.name,sprite2.name])
-            return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1,collisionList)
-        return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1,collisionList)
+        recursions += 1
+        if sprite1index == sprite2index:  # skip over checking itself
+            return self.CheckCollisions(spriteList, sprite1index, sprite2index+1, recursions+1, collisionList)
+        sprite1 = spriteList[sprite1index]
+        sprite2 = spriteList[sprite2index]
+        # returns true if a collision has occurred
+        if self.CompareBoundaries(sprite1.collider.boundaries, sprite2.collider.boundaries) == True:
+            if [sprite1.name, sprite2.name] not in collisionList:
+                collisionList.append([sprite1.name, sprite2.name])
+            return self.CheckCollisions(spriteList, sprite1index, sprite2index+1, recursions+1, collisionList)
+        return self.CheckCollisions(spriteList, sprite1index, sprite2index+1, recursions+1, collisionList)
 
     def GAME_START(self):  # PLAYER 1 stuff here
         ''' Clears the list of items to render on the screen, then draws lobby title text, either waiting for player 2, or player 2 found
@@ -418,7 +441,8 @@ class PygameWindow():
         result = self.GameManager.CheckServerResponse()
         background = Sprite(
             self.screen, self.imageDict['game-background'], True, 0.5, 0.5, False, 'game_background')
-        floor = Sprite(self.screen, self.imageDict[result[1]], True, 0.5, 0.9, 'floor')
+        floor = Sprite(
+            self.screen, self.imageDict[result[1]], True, 0.5, 0.9, 'floor')
         self.SPRITE_RENDER_LIST.extend([background, floor])
         print('ground texture set up complete.')
         self.selectAudio['bgamb']
@@ -459,12 +483,13 @@ class PygameWindow():
             0, 0, self.screenwidth, self.screenheight))
         for sprite in self.SPRITE_RENDER_LIST:
             try:
-                sprite.collider.boundaries=[
-                        (0+sprite.pX, 0+sprite.pY),
-                        (sprite.collider.width+sprite.pX, 0+sprite.pY),
-                        (0+sprite.pX, sprite.collider.height+sprite.pY),
-                        (sprite.collider.width+sprite.pX, sprite.collider.height+sprite.pY)
-        ]
+                sprite.collider.boundaries = [
+                    (0+sprite.pX, 0+sprite.pY),
+                    (sprite.collider.width+sprite.pX, 0+sprite.pY),
+                    (0+sprite.pX, sprite.collider.height+sprite.pY),
+                    (sprite.collider.width+sprite.pX,
+                     sprite.collider.height+sprite.pY)
+                ]
             except:
                 pass
             for animation in sprite.animations.values():  # updates every animation, for every sprite
@@ -531,7 +556,7 @@ class Sprite():
         self.animations = {}
         self.isCollider = isCollider
         self.angle = 0
-        self.name=name
+        self.name = name
         #print('sprite of :',self.image,self.pX,self.pY)
         if self.image != None and isCollider == False:
             self.collider = BoundingBox(
