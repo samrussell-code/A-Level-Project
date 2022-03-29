@@ -437,7 +437,7 @@ class ClientHandler:
                 pn+=1
                 if player.health==0:
                     print('PLAYER',pn,'HAS DIED - GAME OVER')
-                    self.GAME_TIME==False
+                    self.GAME_TIME=False
 
     def CalculateDeltaTime(self, originaltime):
         '''Takes a time in seconds as an input, and returns the change in time since the input time, in seconds'''
