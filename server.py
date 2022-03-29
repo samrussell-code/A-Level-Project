@@ -307,6 +307,16 @@ class ClientHandler:
         self.SendData(4, [playerID1, 'Game Ready'], False)
         self.ManageGame(2)
 
+    def FixCollisionList(self,info):
+        ''' Reconverts a 2D array from a string back to a 2D array, by splitting and removing non alphabetic entries
+        '''
+        col=info.split("'")
+        templist=col
+        for x in col:
+            if x[0].lower() not in ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']:
+                templist.remove(x)
+        return templist
+
     def UpdatePlayerInputs(self, playernumber):
         ''' Starts at both players ready, loops until game is over
 
@@ -315,16 +325,16 @@ class ClientHandler:
         while self.GAME_TIME == True:
             try:
                 info_list = self.CollisionCorrectData()
-                #print('info list:',info_list)
+                collision_list=self.FixCollisionList(info_list[4])
                 # [Input_Left,Input_Right,Queued_Bullet]
                 if playernumber == 1:
-                    self.Player1.left_input, self.Player1.right_input, self.Player1.mousepos, self.Player1.lmb_input = info_list[0], info_list[1], eval(
-                        info_list[2]), info_list[3]
+                    self.Player1.left_input, self.Player1.right_input, self.Player1.mousepos, self.Player1.lmb_input, self.Player1.collision_list = info_list[0], info_list[1], eval(
+                        info_list[2]), info_list[3], collision_list
                     # eval is a builtin function that determines the type of the input variable and in this case converts a string to a tuple.
                     # info for player 1 has been collected. in order to communicate this to player 2, and retrieve their data, two instances of clienthandler must communicate externally.
                 elif playernumber == 2:
-                    self.Player2.left_input, self.Player2.right_input, self.Player2.mousepos, self.Player2.lmb_input = info_list[0], info_list[1], eval(
-                        info_list[2]), info_list[3]
+                    self.Player2.left_input, self.Player2.right_input, self.Player2.mousepos, self.Player2.lmb_input, self.Player2.collision_list = info_list[0], info_list[1], eval(
+                        info_list[2]), info_list[3], collision_list
             except:
                 # ERR_CATCH(0)
                 pass
@@ -409,10 +419,25 @@ class ClientHandler:
             while deltatime < (1/60):
                 time.sleep(0.001)
                 deltatime = self.CalculateDeltaTime(clocktime)
+
+            if int(player_id)==1 and (len(self.Player1.collision_list)>0 or len(self.Player2.collision_list)>0):
+                if str(['bullet', 'opp_tank']) in str(self.Player1.collision_list): #each player only checks their respective bullet for collisions
+                    self.Player2.hit()
+            elif int(player_id)==2 and (len(self.Player1.collision_list)>0 or len(self.Player2.collision_list)>0):
+                if str(['opp_bullet', 'tank']) in str(self.Player2.collision_list): #have to convert to string in order to probe the 2D array
+                    self.Player1.hit()
+
             if int(player_id) == 1:
                 self.Player1 = player  # this will be empty if user is p2
             elif int(player_id) == 2:
                 self.Player2 = player  # this will be empty if user is p1
+            
+            pn=0
+            for player in [self.Player1,self.Player2]:
+                pn+=1
+                if player.health==0:
+                    print('PLAYER',pn,'HAS DIED - GAME OVER')
+                    self.GAME_TIME==False
 
     def CalculateDeltaTime(self, originaltime):
         '''Takes a time in seconds as an input, and returns the change in time since the input time, in seconds'''
@@ -503,7 +528,17 @@ class Player():
         self.lmb_input = 0
         self.mousepos = (0, 0)
         self.bullet = Bullet(init_position_x, init_position_y)
+        self.collision_list = []
+        self.health = 3
+        self.hit_cooldown=time.perf_counter()
 
+    def hit(self):
+        '''Registers a hit as a health reduction if it has been longer than 3 seconds since the previous hit.
+        '''
+        if time.perf_counter()-self.hit_cooldown>3:
+            self.health = self.health-1 if self.health>0 else 0
+            rprint(self.health,'health')
+            self.hit_cooldown=time.perf_counter()
     def get_position(self):  # returns the player position variables in a str
         return str(self.position_x)+' '+str(self.position_y)+'  '+str(self.bullet.position_x)+' '+str(self.bullet.position_y)+' '+str(self.bullet.angle)
 
