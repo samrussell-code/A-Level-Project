@@ -180,6 +180,7 @@ class PygameWindow():
         pygame.display.set_icon(icon)
         # the difference between a sprite and an image is that multiple sprites can use the same image, but image only has to be loaded once this way.
         pygame.mouse.set_visible(1)
+        self.collisionlist=[]
         self.imageDict = {
             'bullet-idle_1': Image('bullet-idle_1.png', '#ffffff', 0.01, self.screenwidth, self.screenheight),
             'menu_background': Image('menu_background.png', None, 1, self.screenwidth, self.screenheight),
@@ -230,7 +231,7 @@ class PygameWindow():
         # every sprite to be rendered should go in this list, sprite on top is end of list.
         self.SPRITE_RENDER_LIST = [self.background, self.title_object]
         self.last_time = 0
-        self.input_list = [0, 0, 0, 0, 'kill||']
+        self.input_list = [0, 0, 0, 0, self.collisionlist, 'kill||']
         # FORMAT A,D,MOUSECOORDINATES,LMB
         self.old_inf = ['6', '10', '10', '10', '10', '10', '10', '10', '10']
         self.update()
@@ -267,8 +268,7 @@ class PygameWindow():
                     self.bullet.UpdateRotation(inf[9])
                 if inf[10] != self.opponentbullet.angle:
                     self.opponentbullet.UpdateRotation(inf[10])
-                var=self.CheckCollisions(self.SPRITE_RENDER_LIST)
-                if var!=False:  rprint(var,'var')
+                self.input_list[4]=self.CheckCollisions(self.SPRITE_RENDER_LIST,0,0,0,[])
 
 
     def button_layout(self, offsetx, offsety, sizex=-1, sizey=-1, auto=True):
@@ -354,29 +354,31 @@ class PygameWindow():
                 return True
             else:   return False
 
-    def CheckCollisions(self,spriteList,sprite1index=0,sprite2index=1,recursions=0):
+    def CheckCollisions(self,spriteList,sprite1index=0,sprite2index=0,recursions=0,collisionList=[]):
         ''' Takes a sprite list and compares every sprite against each other in the list until a collision is found.
 
             Increments the sprite to compare to until all sprites have been iterated, then increments the sprite being compared.
         '''
-        MAX_RECURSIONS=100
+        MAX_RECURSIONS=250
         spriteList=list(filter(self.FilterColliders,spriteList))
         if len(spriteList)==0:  return False
         if sprite2index>=len(spriteList): #if all sprites have been checked against sprite1
             sprite1index+=1
             sprite2index=0
         if sprite1index>=len(spriteList): #if all sprites have been checked against all other sprites
-            return False
+            return collisionList
         if recursions>MAX_RECURSIONS:
             ERR_CATCH(14)
-            return False
+            return collisionList
         recursions+=1
         if sprite1index==sprite2index: #skip over checking itself
-            return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1)
+            return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1,collisionList)
         sprite1=spriteList[sprite1index];sprite2=spriteList[sprite2index]
         if self.CompareBoundaries(sprite1.collider.boundaries,sprite2.collider.boundaries)==True: #returns true if a collision has occurred
-            return sprite1.name,sprite2.name
-        return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1)
+            if [sprite1.name,sprite2.name] not in collisionList:
+                collisionList.append([sprite1.name,sprite2.name])
+            return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1,collisionList)
+        return self.CheckCollisions(spriteList,sprite1index,sprite2index+1,recursions+1,collisionList)
 
     def GAME_START(self):  # PLAYER 1 stuff here
         ''' Clears the list of items to render on the screen, then draws lobby title text, either waiting for player 2, or player 2 found
@@ -422,13 +424,13 @@ class PygameWindow():
         self.selectAudio['bgamb']
         pygame.mixer.music.play()
         self.bullet = Sprite(
-            self.screen, self.imageDict['bullet-idle_1'], False, 0.1, 0.6, False, 'bullet')
+            self.screen, self.imageDict['bullet-idle_1'], False, 0.1, 0.6, True, 'bullet')
         self.opponentbullet = Sprite(
-            self.screen, self.imageDict['bullet-idle_1'], False, 0.8, 0.6, False, 'opp_bullet')
+            self.screen, self.imageDict['bullet-idle_1'], False, 0.8, 0.6, True, 'opp_bullet')
         self.tank = Tank(
-            self.screen, self.imageDict['tank1'], False, 0.1, 0.6, False, 'tank')
+            self.screen, self.imageDict['tank1'], False, 0.1, 0.6, True, 'tank')
         self.enemytank = Tank(
-            self.screen, self.imageDict['enemytank1'], False, 0.8, 0.6, False, 'opp_tank')
+            self.screen, self.imageDict['enemytank1'], False, 0.8, 0.6, True, 'opp_tank')
         self.SPRITE_RENDER_LIST.extend(
             [self.bullet, self.opponentbullet, self.tank, self.enemytank])
         self.bullet.collider.ShowCollisions()
