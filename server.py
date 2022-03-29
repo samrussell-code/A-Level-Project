@@ -401,10 +401,18 @@ class ClientHandler:
             winnerid=result[4]
         else:
             winner='ERROR'
-        cursor.execute(f'''SELECT username FROM PROFILE_INFO WHERE UUID="{winnerid}"''')
-        winnername=cursor.fetchone()[0]
-        if player_id==1:    print('WINNER OF GAME',result[2],'is:', winnername)
-        self.SendData(7, [winner, 'kill||'], False)
+        cursor.execute(f'''SELECT username,WinCount FROM PROFILE_INFO WHERE UUID="{winnerid}"''')
+        userinf=cursor.fetchall()[0]
+        winnername=userinf[0]
+        try:
+            wincount=int(userinf[1])
+        except:
+            wincount=0
+        if player_id==1:
+            print('WINNER OF GAME',result[2],'is:', winnername)
+            dbAddToTable(connection, 'UPDATE PROFILE_INFO SET WinCount=? WHERE UUID=?;', (str(
+            wincount+1),winnerid),'PROFILE_INFO',False)
+        self.SendData(7, [winnername, 'kill||'], False)
 
     def PhysicsUpdate(self, player_id):
         deltatime = time.perf_counter()
@@ -513,7 +521,6 @@ class ClientHandler:
                     dbAddToTable(connection, 'UPDATE LOBBY SET IsOnline=? WHERE LobbyID=?;',
                                  ('False', self.lobby_ID), 'LOBBY', False)
                     self.GAME_TIME = False
-            # print(self.Player1.get_position(),self.Player2.get_position())
 
     def SendData(self, opcode, data_list, recieve=True):
         data = str(opcode)
