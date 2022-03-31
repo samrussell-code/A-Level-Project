@@ -1,4 +1,5 @@
 import time
+from err import ERR_CATCH
 from tkinter import *
 from functools import partial
 from cryptography.hazmat.primitives import hashes
@@ -287,9 +288,9 @@ class PygameWindow():
             relative_rect=victory_text_layout,
             manager=self.UIManager,
             anchors={'left': 'left',
-                   'right': 'right',
-                   'top': 'top',
-                   'bottom': 'bottom'})
+                     'right': 'right',
+                     'top': 'top',
+                     'bottom': 'bottom'})
         self.UIManager.update(self.deltatime)
         self.UIManager.draw_ui(self.screen)
         pygame.display.flip()
@@ -436,7 +437,7 @@ class PygameWindow():
         '''
         result = self.GameManager.CheckServerResponse()
         while result == None:
-            pass  
+            pass
         self.UIManager.clear_and_reset()
         self.SPRITE_RENDER_LIST = []  # empties the screen
         return (result[0], result[1])
@@ -452,13 +453,13 @@ class PygameWindow():
         self.selectMusic['bgamb']
         pygame.mixer.music.play()
         self.bullet = Sprite(
-            self.screen, self.imageDict['bullet-idle_1'], False, 0.1, 0.6, True, 'bullet')
+            self.screen, self.imageDict['bullet-idle_1'], False, 0.1, 0.6, False, 'bullet')
         self.opponentbullet = Sprite(
-            self.screen, self.imageDict['bullet-idle_1'], False, 0.8, 0.6, True, 'opp_bullet')
+            self.screen, self.imageDict['bullet-idle_1'], False, 0.8, 0.6, False, 'opp_bullet')
         self.tank = Tank(
-            self.screen, self.imageDict['tank1'], False, 0.1, 0.6, True, 'tank')
+            self.screen, self.imageDict['tank1'], False, 0.1, 0.6, False, 'tank')
         self.enemytank = Tank(
-            self.screen, self.imageDict['enemytank1'], False, 0.8, 0.6, True, 'opp_tank')
+            self.screen, self.imageDict['enemytank1'], False, 0.8, 0.6, False, 'opp_tank')
         self.SPRITE_RENDER_LIST.extend(
             [self.bullet, self.opponentbullet, self.tank, self.enemytank])
         self.bullet.collider.ShowCollisions()

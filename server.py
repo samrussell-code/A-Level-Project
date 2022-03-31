@@ -345,8 +345,8 @@ class ClientHandler:
     def ManageGame(self, player_id):
         '''MAIN
         '''
-        self.Player1 = Player(0.1, 0.6, 3)
-        self.Player2 = Player(0.8, 0.6, 3)
+        self.Player1 = Player(0.1, 0.675, 3)
+        self.Player2 = Player(0.675, 0.675, 3)
         # using the text file ensures sync across both instances of server connection
         game_log = open(str('log/'+str(self.lobby_ID)+'.txt'), 'r')
         # this for loop finds the 7th line in the file and sets it to var line
@@ -359,9 +359,9 @@ class ClientHandler:
         # OPCODE5 is type of ground texture to use
         self.SendData(5, [floortype, 'kill||'], False)
         dbAddToTable(connection, 'UPDATE LOBBY SET Player1Data=?, Player1Health=? WHERE LobbyID=?;',
-                     ('0.1 0.6 0.1 0.6 0 3', '3', self.lobby_ID), 'LOBBY', False)
+                     ('0.1 0.675 0.1 0.675 0 3', '3', self.lobby_ID), 'LOBBY', False)
         dbAddToTable(connection, 'UPDATE LOBBY SET Player2Data=?, Player2Health=? WHERE LobbyID=?;',
-                     ('0.8 0.6 0.1 0.6 0 3', '3', self.lobby_ID), 'LOBBY', False)
+                     ('0.675 0.675 0.1 0.675 0 3', '3', self.lobby_ID), 'LOBBY', False)
         self.GAME_TIME = True
         threading.Thread(target=self.UpdatePlayerInputs,
                          args=(player_id,), daemon=True).start()

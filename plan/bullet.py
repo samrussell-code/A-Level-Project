@@ -3,6 +3,7 @@ from math import *
 import pygame
 from pygame.locals import *
 from planning.pygame.animation import AnimatedSprite
+import time
 def CreateFrameList(stateName):
     '''
     CreateFrameList(spriteName)
@@ -56,7 +57,7 @@ class Bullet(AnimatedSprite):
         super().__init__()
         self.idleframeList=CreateFrameList('bullet-idle')
         self.COEFFICIENT_RESTITUTION=0.4 #this value affects the bouncing power of the bullet against objects it collides with.
-        self.FRAMERATE=60 #this value affects the speed at which the program runs
+        self.FRAMERATE=144 #this value affects the speed at which the program runs
         self.isMoving=False
         self.pos=1920/2,1080/2 #the bullet's starting position unless otherwise specified
         self.velocity,self.angle,self.count=0,0,0 #setting up variable to be used later
@@ -111,9 +112,9 @@ class Bullet(AnimatedSprite):
     def GetDisplacement_(self,velocity=0.01,angle=0.01,time=0):
         hMovement=velocity*cos(radians(angle)) # seperates the magnitudal velocity into its horizontal and vertical components
         vMovement=velocity*sin(radians(angle))
-        vMovement=-(vMovement)+(((9.81/2)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
+        vMovement=-(vMovement)+(((9.81)*(time)**2)/2) #modifies vertical velocity based off time, horizontal movement should be constant.
         terminalVelocity=3000
-        vMovement=terminalVelocity if vMovement>terminalVelocity else vMovement
+        vMovement=terminalVelocity if abs(vMovement)>terminalVelocity else vMovement
         self.pos=self.UpdatePosition_(self.pos,hMovement,vMovement)
         
     def GetVelocityAngle(self,forcePosition,objectPosition):
@@ -170,7 +171,7 @@ def main():
     background.fill((250,250,250))
     screen.blit(background, (0,0)) #creates the background on the overarching screen surface.
     pygame.display.flip() #flip updates a display that is idle.
-    framerate=60
+    framerate=144
     bullet=Bullet()
     bullet.FRAMERATE=framerate
     mouse=MouseObject()
